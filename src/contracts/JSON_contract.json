@@ -1,0 +1,130 @@
+{
+  "$id": "https://nasa-habitat.local/layout.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HabitatLayoutSubmission",
+  "type": "object",
+  "required": ["scenario", "habitat", "modules"],
+  "properties": {
+    "scenario": {
+      "type": "object",
+      "required": ["crew_size", "mission_duration_days", "destination", "fairing"],
+      "properties": {
+        "crew_size": { "type": "integer", "minimum": 1 },
+        "mission_duration_days": { "type": "integer", "minimum": 1 },
+        "destination": { "type": "string", "enum": ["LEO", "LUNAR", "MARS_TRANSIT", "MARS_SURFACE", "DEEP_SPACE"] },
+        "fairing": {
+          "type": "object",
+          "required": ["name", "inner_diameter_m", "inner_height_m", "shape"],
+          "properties": {
+            "name": { "type": "string" },
+            "inner_diameter_m": { "type": "number", "exclusiveMinimum": 0 },
+            "inner_height_m": { "type": "number", "exclusiveMinimum": 0 },
+            "shape": { "type": "string", "enum": ["CYLINDRICAL", "OGIVE"] }
+          }
+        }
+      }
+    },
+
+    "habitat": {
+      "type": "object",
+      "required": ["shape", "levels", "dimensions"],
+      "properties": {
+        "shape": { "type": "string", "enum": ["CYLINDER", "RECT_PRISM", "RING"] },
+        "levels": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "diameter_m": { "type": "number", "exclusiveMinimum": 0 },
+            "height_m": { "type": "number", "exclusiveMinimum": 0 },
+            "width_m": { "type": "number", "exclusiveMinimum": 0 },
+            "length_m": { "type": "number", "exclusiveMinimum": 0 },
+            "outer_diameter_m": { "type": "number", "exclusiveMinimum": 0 },
+            "inner_diameter_m": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "pressurized_volume_m3": { "type": "number", "minimum": 0 },
+        "net_habitable_volume_m3": { "type": "number", "minimum": 0 }
+      }
+    },
+
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "level", "position", "size"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CREW_SLEEP","HYGIENE","WASTE","EXERCISE","FOOD_PREP","ECLSS",
+              "MEDICAL","MAINTENANCE","STOWAGE","RECREATION","WORKSTATION",
+              "AIRLOCK","GLOVEBOX","TRASH_MGMT","COMMON_AREA"
+            ]
+          },
+          "level": { "type": "integer", "minimum": 0 },
+          "position": {
+            "description": "Grid coords (meters) on level; origin at lower-left of bounding box.",
+            "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2
+          },
+          "size": {
+            "type": "object",
+            "required": ["w_m", "l_m", "h_m"],
+            "properties": {
+              "w_m": { "type": "number", "exclusiveMinimum": 0 },
+              "l_m": { "type": "number", "exclusiveMinimum": 0 },
+              "h_m": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "rotation_deg": { "type": "number", "default": 0 },
+          "crew_capacity": { "type": "integer", "minimum": 0 },
+          "equipment": { "type": "array", "items": { "type": "string" } },
+          "metadata": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "paths": {
+      "description": "Optional circulation/egress polylines for clearance checks.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "points"],
+        "properties": {
+          "id": { "type": "string" },
+          "points": {
+            "type": "array",
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            "minItems": 2
+          },
+          "min_clear_width_m": { "type": "number", "minimum": 0.6 }
+        }
+      }
+    },
+
+    "rules_hints": {
+      "description": "Frontend-estimated targets; backend is source of truth.",
+      "type": "object",
+      "properties": {
+        "min_area_per_crew_m2": { "type": "object", "additionalProperties": { "type": "number" } },
+        "adjacency_soft_constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "must_separate": { "type": "array", "items": { "type": "string" } },
+              "prefer_adjacent": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "corridor_clearance_m": { "type": "number", "minimum": 0.6 }
+      }
+    },
+
+    "version": { "type": "string", "default": "1.0.0" }
+  },
+  "additionalProperties": false
+}

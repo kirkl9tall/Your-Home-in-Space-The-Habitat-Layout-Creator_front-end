@@ -1,0 +1,14 @@
+{
+  "suggestions": [
+    {
+      "id": "SUG-201",
+      "label": "Swap locations of STOWAGE and WORKSTATION",
+      "description": "Improves workflow and noise separation from SLEEP.",
+      "patch": {
+        "op": "swap",
+        "moduleA": "stow-01",
+        "moduleB": "ws-01"
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "valid": false,
+  "issues": [
+    {
+      "id": "ISS-001",
+      "severity": "error",
+      "message": "FOOD_PREP adjacent to HYGIENE violates separation rule.",
+      "moduleIds": ["galley-01", "hyg-01"],
+      "rule": "adjacency.separate.food_hygiene"
+    },
+    {
+      "id": "ISS-002",
+      "severity": "warn",
+      "message": "EXERCISE area below minimum target per crew.",
+      "moduleIds": ["ex-01"],
+      "rule": "area.min.exercise"
+    }
+  ],
+  "metrics": {
+    "nhv_m3": 298.4,
+    "pressurized_m3": 400.0,
+    "utilization_ratio": 0.75,
+    "corridor_clearance_ok": true
+  },
+  "suggestions": [
+    {
+      "id": "SUG-101",
+      "label": "Move galley away from hygiene by ≥1.5 m",
+      "description": "Reduces cross-contamination risk and noise.",
+      "patch": { "op": "move", "moduleId": "galley-01", "position": [2.0, 3.6] }
+    },
+    {
+      "id": "SUG-102",
+      "label": "Increase EXERCISE area",
+      "description": "Meets per-crew target for 4 crew.",
+      "patch": { "op": "resize", "moduleId": "ex-01", "size": { "w_m": 3.5, "l_m": 4.5, "h_m": 2.5 } }
+    }
+  ]
+}
