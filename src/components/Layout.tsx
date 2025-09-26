@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { Rocket, BarChart3, FolderOpen } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
 
 const navigation = [
   { name: 'Design', href: '/design', icon: Rocket },
@@ -30,28 +31,31 @@ export function Layout() {
               </Link>
             </div>
             
-            <div className="flex items-center space-x-8">
-              {navigation.map((item) => {
-                const Icon = item.icon
-                const isActive = location.pathname === item.href || 
-                  (item.href === '/design' && location.pathname === '/')
-                
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={cn(
-                      'inline-flex items-center gap-2 px-1 pt-1 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'text-purple-300 border-b-2 border-purple-400'
-                        : 'text-gray-300 hover:text-purple-200 hover:border-gray-300'
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.name}
-                  </Link>
-                )
-              })}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-8">
+                {navigation.map((item) => {
+                  const Icon = item.icon
+                  const isActive = location.pathname === item.href || 
+                    (item.href === '/design' && location.pathname === '/')
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={cn(
+                        'inline-flex items-center gap-2 px-1 pt-1 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'text-purple-300 border-b-2 border-purple-400'
+                          : 'text-gray-300 hover:text-purple-200 hover:border-gray-300'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.name}
+                    </Link>
+                  )
+                })}
+              </div>
+              <ThemeToggle />
             </div>
           </div>
         </div>

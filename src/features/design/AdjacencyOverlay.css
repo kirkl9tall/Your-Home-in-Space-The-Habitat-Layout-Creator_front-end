@@ -1,0 +1,79 @@
+/* Adjacency hint styles */
+.adjacency-preferred {
+  position: relative;
+}
+
+.adjacency-preferred::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 20px;
+  height: 2px;
+  border-top: 2px dashed hsl(var(--success));
+  transform: translateY(-50%);
+  opacity: 0.7;
+}
+
+.adjacency-separate {
+  position: relative;
+}
+
+.adjacency-separate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 20px;
+  height: 2px;
+  border-top: 2px dotted hsl(var(--danger));
+  transform: translateY(-50%);
+  opacity: 0.7;
+}
+
+/* Connection lines for 3D modules */
+.module-connection-preferred {
+  stroke: hsl(var(--success));
+  stroke-width: 2;
+  stroke-dasharray: 5,5;
+  opacity: 0.7;
+  fill: none;
+}
+
+.module-connection-separate {
+  stroke: hsl(var(--danger));
+  stroke-width: 2;
+  stroke-dasharray: 2,3;
+  opacity: 0.7;
+  fill: none;
+}
+
+/* Animate connections when zoning is enabled */
+@media (prefers-reduced-motion: no-preference) {
+  .module-connection-preferred {
+    animation: dash-flow 2s linear infinite;
+  }
+  
+  .module-connection-separate {
+    animation: dash-flow-reverse 1.5s linear infinite;
+  }
+  
+  @keyframes dash-flow {
+    to {
+      stroke-dashoffset: -10;
+    }
+  }
+  
+  @keyframes dash-flow-reverse {
+    to {
+      stroke-dashoffset: 5;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-connection-preferred,
+  .module-connection-separate {
+    animation: none;
+  }
+}

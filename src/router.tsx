@@ -1,6 +1,7 @@
 import { createRouter, createRoute, createRootRoute } from '@tanstack/react-router'
 import { Layout } from './components/Layout'
 import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
+import DesignSystemDemo from './components/DesignSystemDemo'
 
 // Root route
 const rootRoute = createRootRoute({
@@ -69,12 +70,20 @@ const collectionsRoute = createRoute({
   ),
 })
 
+// Design System Demo route
+const demoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/demo',
+  component: DesignSystemDemo,
+})
+
 // Create the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   designRoute,
   analysisRoute,
   collectionsRoute,
+  demoRoute,
 ])
 
 // Create router

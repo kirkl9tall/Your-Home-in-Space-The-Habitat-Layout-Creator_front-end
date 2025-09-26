@@ -17,6 +17,7 @@ import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
 import CADShapeBuilder from './CADShapeBuilder';
+import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
 const MODULE_TYPES_3D = {
@@ -2023,6 +2024,14 @@ export default function NASAHabitatBuilder3D() {
                 </h2>
                 <p className="text-gray-400">Comprehensive analysis and validation tools for your habitat design</p>
               </div>
+              
+              {/* Real-time Metrics */}
+              <MetricsHeader 
+                nhv={habitat.net_habitable_volume_m3}
+                pressurizedVolume={habitat.pressurized_volume_m3}
+                utilization={Math.min(100, (objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0) / habitat.net_habitable_volume_m3) * 100)}
+                corridorStatus={objects.length > 0 ? 'success' : 'danger'}
+              />
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* NASA Validation Panel */}
