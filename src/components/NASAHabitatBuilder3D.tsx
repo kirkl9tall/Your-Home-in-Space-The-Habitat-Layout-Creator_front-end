@@ -245,6 +245,7 @@ function ThreeScene({
   setObjects, 
   selectedId, 
   setSelectedId, 
+  scenario,
   hoverPointRef, 
   isInitialized, 
   setIsInitialized,
@@ -255,6 +256,7 @@ function ThreeScene({
   setObjects: React.Dispatch<React.SetStateAction<HabitatObject[]>>;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
+  scenario: Scenario;
   hoverPointRef: React.MutableRefObject<THREE.Vector3 | null>;
   isInitialized: boolean;
   setIsInitialized: (initialized: boolean) => void;
@@ -266,6 +268,74 @@ function ThreeScene({
   }>;
   onContextMenu: (x: number, y: number, objectId: string | null) => void;
 }) {
+  // Get environment colors and textures based on destination
+  const getEnvironmentConfig = (destination: string) => {
+    switch (destination) {
+      case 'MARS_SURFACE':
+        return {
+          background: 0x8B4513,      // Mars brown sky
+          ground: 0xCD853F,          // Sandy/rusty ground (fallback)
+          grid: 0x8B4513,            // Brown grid
+          ambientLight: 0xFFB366,    // Warm ambient light
+          directionalLight: 0xFFDAB9, // Warm directional light
+          groundTexture: '/textures/ground/mars_surface.webp',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+      case 'LUNAR':
+      case 'LUNAR_SURFACE':
+        return {
+          background: 0x111111,      // Dark lunar sky
+          ground: 0x696969,          // Grey lunar surface (fallback)
+          grid: 0x555555,            // Dark grey grid
+          ambientLight: 0xCCCCCC,    // Cool ambient light
+          directionalLight: 0xFFFFFF, // White directional light
+          groundTexture: '/textures/ground/moon-surface-seamless-texture-background-closeup-moon-surface-texture-188679621.webp',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+      case 'LEO':
+      case 'SPACE_STATION':
+        return {
+          background: 0x000011,      // Deep space blue-black
+          ground: 0x2F4F4F,          // Dark slate station floor (fallback)
+          grid: 0x4682B4,            // Steel blue grid
+          ambientLight: 0xE6F3FF,    // Cool white ambient
+          directionalLight: 0xFFFFFF, // Bright white directional
+          groundTexture: '/textures/ground/space-station-floor.jpg',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+      case 'MARS_TRANSIT':
+        return {
+          background: 0x191970,      // Midnight blue space
+          ground: 0x2F2F2F,          // Dark ship floor (fallback)
+          grid: 0x4169E1,            // Royal blue grid
+          ambientLight: 0xE0E6FF,    // Cool ambient
+          directionalLight: 0xF0F8FF, // Alice blue directional
+          groundTexture: '/textures/ground/ship-deck.jpg',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+      case 'DEEP_SPACE':
+        return {
+          background: 0x000000,      // Pure black space
+          ground: 0x1C1C1C,          // Very dark ship floor (fallback)
+          grid: 0x663399,            // Purple grid
+          ambientLight: 0xE6E6FA,    // Lavender ambient
+          directionalLight: 0xFFFFFF, // Pure white directional
+          groundTexture: '/textures/ground/deep-space-deck.jpg',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+      default:
+        return {
+          background: 0x2d1b69,      // Default purple
+          ground: 0xCD5C5C,          // Default red ground (fallback)
+          grid: 0x8b4513,            // Default brown grid
+          ambientLight: 0xFFFFFF,    // Default white ambient
+          directionalLight: 0xFFFFFF, // Default white directional
+          groundTexture: '/textures/ground/default-surface.jpg',
+          skyTexture: '/textures/skybox/sky.webp'
+        };
+    }
+  };
+
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -299,9 +369,12 @@ function ThreeScene({
     }
 
     try {
-      // Scene setup
+      // Get environment configuration based on destination
+      const envConfig = getEnvironmentConfig(scenario.destination);
+      
+      // Scene setup with dynamic background
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x2d1b69);
+      scene.background = new THREE.Color(envConfig.background);
       sceneRef.current = scene;
 
       // Camera setup
@@ -339,27 +412,78 @@ function ThreeScene({
       // Add canvas to DOM
       mountRef.current.appendChild(renderer.domElement);
 
-      // Lighting
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      // Lighting with dynamic colors
+      const ambientLight = new THREE.AmbientLight(envConfig.ambientLight, 0.4);
       scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      const directionalLight = new THREE.DirectionalLight(envConfig.directionalLight, 0.8);
       directionalLight.position.set(10, 10, 5);
       directionalLight.castShadow = true;
       directionalLight.shadow.mapSize.width = 2048;
       directionalLight.shadow.mapSize.height = 2048;
       scene.add(directionalLight);
 
-      // Mars ground
+      // Dynamic ground with texture loading based on destination
       const groundGeometry = new THREE.PlaneGeometry(100, 100);
-      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xcd5c5c });
+      
+      // Create texture loader
+      const textureLoader = new THREE.TextureLoader();
+      
+      // Try to load ground texture, fall back to color if texture fails
+      let groundMaterial: THREE.MeshLambertMaterial;
+      
+      try {
+        console.log(`Loading ground texture: ${envConfig.groundTexture}`);
+        const texture = textureLoader.load(
+          envConfig.groundTexture,
+          // onLoad callback
+          (texture) => {
+            console.log('Ground texture loaded successfully');
+            // Configure texture properties for single image (no tiling)
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.repeat.set(1, 1); // Single image, no repetition
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = true;
+            
+            // Update the material to use the texture
+            groundMaterial.map = texture;
+            groundMaterial.needsUpdate = true;
+          },
+          // onProgress callback
+          (progress) => {
+            console.log('Loading ground texture progress:', progress);
+          },
+          // onError callback
+          (error) => {
+            console.warn('Failed to load ground texture, using fallback color:', error);
+            // Material already created with fallback color, so no additional action needed
+          }
+        );
+        
+        // Create material with texture (will show fallback color until texture loads)
+        groundMaterial = new THREE.MeshLambertMaterial({ 
+          color: envConfig.ground,
+          map: texture 
+        });
+      } catch (error) {
+        console.warn('Error creating texture loader, using fallback color:', error);
+        // Fallback to solid color if texture loading fails
+        groundMaterial = new THREE.MeshLambertMaterial({ color: envConfig.ground });
+      }
+      
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
       scene.add(ground);
 
-      // Grid
-      const gridHelper = new THREE.GridHelper(50, 50, 0x8b4513, 0x8b4513);
+      // Skybox disabled for now - using solid black background
+      // TODO: Implement better skybox solution later
+      scene.background = new THREE.Color(0x000000); // Simple black sky
+
+      // Dynamic grid
+      const gridHelper = new THREE.GridHelper(50, 50, envConfig.grid, envConfig.grid);
       gridHelper.material.transparent = true;
       gridHelper.material.opacity = 0.3;
       scene.add(gridHelper);
@@ -599,7 +723,7 @@ function ThreeScene({
     } catch (error) {
       console.error('Error initializing Three.js:', error);
     }
-  }, [selectedId, setSelectedId, setObjects, hoverPointRef, setIsInitialized]);
+  }, [selectedId, setSelectedId, setObjects, hoverPointRef, setIsInitialized, scenario.destination]);
 
   // Update objects in scene
   useEffect(() => {
@@ -724,7 +848,7 @@ export default function NASAHabitatBuilder3D() {
   const [isInitialized, setIsInitialized] = useState(false);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad' | 'analyses'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -741,10 +865,7 @@ export default function NASAHabitatBuilder3D() {
   // Clipboard for copy/paste
   const [clipboard, setClipboard] = useState<HabitatObject | null>(null);
   
-  // Popup control states
-  const [showDesignPopup, setShowDesignPopup] = useState(false);
-  const [showCADPopup, setShowCADPopup] = useState(false);
-  const [showImportExportPopup, setShowImportExportPopup] = useState(false);
+  // UI control states
   const [showCameraHelp, setShowCameraHelp] = useState(true);
   const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
   
@@ -789,11 +910,7 @@ export default function NASAHabitatBuilder3D() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.popup-container') && !target.closest('button')) {
-        setShowDesignPopup(false);
-        setShowCADPopup(false);
-        setShowImportExportPopup(false);
-      }
+      // Handle any other click outside logic if needed
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -1427,10 +1544,7 @@ export default function NASAHabitatBuilder3D() {
       setSelectedId(id);
     }
     
-    // Close popups and redirect to design tab
-    setShowDesignPopup(false);
-    setShowCADPopup(false);
-    setShowImportExportPopup(false);
+    // Redirect to design tab
     setActiveTab('design');
     
     alert('New design created! Added a crew sleep module to get you started.');
@@ -1463,144 +1577,83 @@ export default function NASAHabitatBuilder3D() {
       {/* Header */}
       <header className="glass-morphism shadow-2xl border-b border-purple-500/20">
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg glow-purple">
-                <Camera className="w-6 h-6 text-white drop-shadow-lg" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-blue-300 to-purple-300 bg-clip-text text-transparent text-shadow">
-                  NASA Habitat 3D Designer
-                </h1>
-                <p className="text-sm text-gray-300 text-shadow-sm">Professional space habitat layout tool</p>
-              </div>
+          {/* Logo and Title */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg glow-purple">
+              <Camera className="w-6 h-6 text-white drop-shadow-lg" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-blue-300 to-purple-300 bg-clip-text text-transparent text-shadow">
+                NASA Habitat Designer
+              </h1>
+              <p className="text-xs text-gray-400 text-shadow-sm">Professional space habitat layout tool</p>
             </div>
           </div>
           
+          {/* Main Navigation Menu */}
+          <nav className="flex items-center gap-1">
+            <Button 
+              onClick={() => setActiveTab('design')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'design' 
+                  ? 'bg-blue-600/80 text-white border-blue-400/50 shadow-lg glow-blue' 
+                  : 'bg-gray-800/40 text-gray-300 border-gray-600/30 hover:bg-blue-600/40 hover:text-white hover:border-blue-500/40'
+              } border backdrop-blur-sm`}
+            >
+              <Eye className="w-4 h-4" />
+              <span className="font-medium">Design Area</span>
+            </Button>
+            
+            <Button 
+              onClick={() => setActiveTab('cad')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'cad' 
+                  ? 'bg-orange-600/80 text-white border-orange-400/50 shadow-lg glow-orange' 
+                  : 'bg-gray-800/40 text-gray-300 border-gray-600/30 hover:bg-orange-600/40 hover:text-white hover:border-orange-500/40'
+              } border backdrop-blur-sm`}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="font-medium">Laboratory CAD</span>
+            </Button>
+            
+            <Button 
+              onClick={() => setActiveTab('collections')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'collections' 
+                  ? 'bg-green-600/80 text-white border-green-400/50 shadow-lg glow-green' 
+                  : 'bg-gray-800/40 text-gray-300 border-gray-600/30 hover:bg-green-600/40 hover:text-white hover:border-green-500/40'
+              } border backdrop-blur-sm`}
+            >
+              <Folder className="w-4 h-4" />
+              <span className="font-medium">Collections</span>
+            </Button>
+            
+            <Button 
+              onClick={() => setActiveTab('analyses')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'analyses' 
+                  ? 'bg-purple-600/80 text-white border-purple-400/50 shadow-lg glow-purple' 
+                  : 'bg-gray-800/40 text-gray-300 border-gray-600/30 hover:bg-purple-600/40 hover:text-white hover:border-purple-500/40'
+              } border backdrop-blur-sm`}
+            >
+              <Lightbulb className="w-4 h-4" />
+              <span className="font-medium">Analyses</span>
+            </Button>
+          </nav>
+
+          {/* Quick Actions */}
           <div className="flex items-center gap-2">
-            {/* Main Action Buttons */}
-            <Button onClick={() => setShowDesignPopup(!showDesignPopup)} className="btn-space">
-              <Settings className="w-4 h-4 mr-2" />
-              Design Tools
+            <Button onClick={createNewDesign} className="btn-space px-3 py-2">
+              <Plus className="w-4 h-4 mr-1" />
+              New
             </Button>
-            <Button onClick={() => setShowCADPopup(!showCADPopup)} className="btn-space">
-              <Shapes className="w-4 h-4 mr-2" />
-              CAD Tools
-            </Button>
-            <Button onClick={createNewDesign} className="btn-space">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Design
-            </Button>
-            <Button onClick={clearLayout} className="btn-mars">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear All
+            <Button onClick={clearLayout} className="btn-mars px-3 py-2">
+              <Trash2 className="w-4 h-4 mr-1" />
+              Clear
             </Button>
           </div>
         </div>
       </header>
-
-      {/* Design Tools Popup */}
-      {showDesignPopup && (
-        <div className="popup-container absolute top-20 left-1/2 transform -translate-x-1/2 z-50 bg-black/90 backdrop-blur-sm border border-purple-500/30 rounded-lg p-4 shadow-2xl">
-          <div className="flex flex-col gap-2 min-w-[300px]">
-            <h3 className="text-purple-300 font-semibold mb-2 flex items-center">
-              <Settings className="w-4 h-4 mr-2" />
-              Design Tools
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={addSampleModule} className="btn-space">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Sample Modules
-              </Button>
-              <Button onClick={handleNASAValidation} disabled={loading.validation} className="btn-nasa">
-                {loading.validation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                NASA Validate
-              </Button>
-              <Button onClick={quickSave} disabled={isSaving} className="btn-space">
-                <Save className="w-4 h-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Design'}
-              </Button>
-              <Button onClick={() => setActiveTab('collections')} className="btn-space">
-                <Folder className="w-4 h-4 mr-2" />
-                Collections
-              </Button>
-              <Button onClick={() => setShowCameraHelp(!showCameraHelp)} className="btn-space">
-                <Camera className="w-4 h-4 mr-2" />
-                {showCameraHelp ? 'Hide' : 'Show'} Camera Help
-              </Button>
-              <Button onClick={() => setShowImportExportPopup(!showImportExportPopup)} className="btn-space">
-                <Download className="w-4 h-4 mr-2" />
-                Import/Export
-              </Button>
-            </div>
-            
-            {/* Import/Export Sub-Popup */}
-            {showImportExportPopup && (
-              <div className="mt-3 p-3 bg-purple-900/20 rounded border border-purple-500/20">
-                <h4 className="text-purple-200 text-sm font-medium mb-2">Import/Export Options</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={exportNASAJSON} className="btn-space text-sm">
-                    <Download className="w-3 h-3 mr-1" />
-                    Export NASA JSON
-                  </Button>
-                  <Button onClick={importFromCAD} className="btn-space text-sm">
-                    <Download className="w-3 h-3 mr-1" />
-                    Import from CAD
-                  </Button>
-                  <Button onClick={exportToCAD} className="btn-space text-sm">
-                    <Shapes className="w-3 h-3 mr-1" />
-                    Export to CAD
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-            <Button 
-              onClick={() => setShowDesignPopup(false)} 
-              className="btn-mars mt-2 text-sm"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* CAD Tools Popup */}
-      {showCADPopup && (
-        <div className="popup-container absolute top-20 right-10 z-50 bg-black/90 backdrop-blur-sm border border-blue-500/30 rounded-lg p-4 shadow-2xl">
-          <div className="flex flex-col gap-2 min-w-[250px]">
-            <h3 className="text-blue-300 font-semibold mb-2 flex items-center">
-              <Shapes className="w-4 h-4 mr-2" />
-              CAD Tools
-            </h3>
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => setActiveTab('cad')} className="btn-space">
-                <Settings className="w-4 h-4 mr-2" />
-                CAD Laboratory
-              </Button>
-              <Button onClick={() => setActiveTab('shapes')} className="btn-space">
-                <Shapes className="w-4 h-4 mr-2" />
-                Shape Builder
-              </Button>
-              <div className="h-px bg-blue-500/20 my-2"></div>
-              <Button onClick={importFromCAD} className="btn-space">
-                <Download className="w-4 h-4 mr-2" />
-                Import CAD Design
-              </Button>
-              <Button onClick={exportToCAD} className="btn-space">
-                <Shapes className="w-4 h-4 mr-2" />
-                Export Current Layout
-              </Button>
-            </div>
-            <Button 
-              onClick={() => setShowCADPopup(false)} 
-              className="btn-mars mt-2 text-sm"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="flex-1 flex">
         {activeTab === 'design' ? (
@@ -1845,6 +1898,7 @@ export default function NASAHabitatBuilder3D() {
             setObjects={setObjects}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
+            scenario={scenario}
             hoverPointRef={hoverPointRef}
             isInitialized={isInitialized}
             setIsInitialized={setIsInitialized}
@@ -1959,6 +2013,125 @@ export default function NASAHabitatBuilder3D() {
               alert(`CAD design "${design.name}" is now available as a custom module!`);
             }}
           />
+        ) : activeTab === 'analyses' ? (
+          <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-purple-200 mb-2 flex items-center gap-3">
+                  <Lightbulb className="w-8 h-8 text-purple-400" />
+                  Habitat Analysis Center
+                </h2>
+                <p className="text-gray-400">Comprehensive analysis and validation tools for your habitat design</p>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* NASA Validation Panel */}
+                <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-200">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      NASA Standards Validation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-gray-300 text-sm">Validate your habitat design against NASA standards and requirements.</p>
+                    <Button 
+                      onClick={handleNASAValidation} 
+                      disabled={loading.validation}
+                      className="w-full btn-nasa"
+                    >
+                      {loading.validation ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Validating Design...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Run NASA Validation
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Analysis Panel */}
+                <Card className="glass-morphism border-orange-500/30 shadow-xl glow-orange">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-200">
+                      <Lightbulb className="w-5 h-5 text-orange-400" />
+                      Quick Analysis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-gray-800/40 p-3 rounded-lg">
+                        <div className="text-gray-400">Total Modules</div>
+                        <div className="text-2xl font-bold text-orange-300">{objects.length}</div>
+                      </div>
+                      <div className="bg-gray-800/40 p-3 rounded-lg">
+                        <div className="text-gray-400">Total Volume</div>
+                        <div className="text-2xl font-bold text-orange-300">
+                          {objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0).toFixed(1)}m³
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Validation Results Display */}
+              {validationResults && (
+                <div className="mt-6">
+                  <Card className="glass-morphism border-green-500/30 shadow-xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-green-200">
+                        {validationResults.valid ? (
+                          <>
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                            Validation Passed
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-5 h-5 text-red-400" />
+                            Validation Issues Found
+                          </>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {validationResults.issues?.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="text-red-300 font-medium mb-2">Issues to Address:</h4>
+                          <ul className="space-y-1">
+                            {validationResults.issues.map((issue: any, index: number) => (
+                              <li key={index} className="text-red-200 text-sm flex items-center gap-2">
+                                <XCircle className="w-4 h-4" />
+                                {issue}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {validationResults.suggestions?.length > 0 && (
+                        <div>
+                          <h4 className="text-blue-300 font-medium mb-2">Suggestions:</h4>
+                          <ul className="space-y-1">
+                            {validationResults.suggestions.map((suggestion: any, index: number) => (
+                              <li key={index} className="text-blue-200 text-sm flex items-center gap-2">
+                                <Lightbulb className="w-4 h-4" />
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <ShapeBuilder />
         )}
