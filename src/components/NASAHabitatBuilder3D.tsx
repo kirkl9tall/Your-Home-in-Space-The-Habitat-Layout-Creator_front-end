@@ -5,109 +5,218 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus, Save, Folder, Shapes } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import { postCheckLayout, postSuggestLayout } from '@/lib/api';
 import { Layout, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
 
-// Enhanced module types mapping from NASA functional areas to 3D properties
+// Database and collections
+import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
+import Collections from './Collections';
+import ShapeBuilder from './ShapeBuilder';
+import CADShapeBuilder from './CADShapeBuilder';
+
+// Enhanced module types mapping from NASA functional areas to realistic 3D properties
 const MODULE_TYPES_3D = {
   CREW_SLEEP: { 
     color: '#3b82f6', 
     icon: '🛏️', 
     size: { width: 2.0, height: 2.1, depth: 2.2 },
-    geometry: 'box'
+    geometry: 'sleep_pod' // Custom sleep pod shape
   },
   HYGIENE: { 
     color: '#10b981', 
     icon: '🚿', 
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'box'
+    geometry: 'cylinder' // Cylindrical shower module
   },
   WASTE: { 
     color: '#f59e0b', 
     icon: '🚽', 
     size: { width: 1.8, height: 2.2, depth: 1.8 },
-    geometry: 'box'
+    geometry: 'rounded_box' // Rounded waste management unit
   },
   EXERCISE: { 
     color: '#ef4444', 
     icon: '🏋️', 
     size: { width: 3.0, height: 2.5, depth: 4.0 },
-    geometry: 'box'
+    geometry: 'gym_module' // Multi-level exercise area
   },
   FOOD_PREP: { 
     color: '#8b5cf6', 
     icon: '🍳', 
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'box'
+    geometry: 'kitchen_module' // L-shaped kitchen module
   },
   ECLSS: { 
     color: '#22c55e', 
     icon: '💨', 
     size: { width: 3.0, height: 2.3, depth: 2.5 },
-    geometry: 'box'
+    geometry: 'technical_rack' // Equipment rack with panels
   },
   MEDICAL: { 
     color: '#ec4899', 
     icon: '🏥', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'box'
+    geometry: 'medical_bay' // Medical examination area
   },
   MAINTENANCE: { 
     color: '#06b6d4', 
     icon: '🔧', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'box'
+    geometry: 'workshop' // Workshop with tool storage
   },
   STOWAGE: {
     color: '#f97316',
     icon: '📦',
     size: { width: 2.5, height: 2.3, depth: 3.5 },
-    geometry: 'box'
+    geometry: 'storage_rack' // Multi-compartment storage
   },
   RECREATION: {
     color: '#84cc16',
     icon: '🎮',
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'box'
+    geometry: 'lounge_pod' // Comfortable lounge area
   },
   WORKSTATION: {
     color: '#64748b',
     icon: '💻',
     size: { width: 2.2, height: 2.2, depth: 2.2 },
-    geometry: 'box'
+    geometry: 'workstation' // Desk with equipment
   },
   AIRLOCK: {
     color: '#0ea5e9',
     icon: '🚪',
     size: { width: 2.0, height: 2.3, depth: 2.2 },
-    geometry: 'box'
+    geometry: 'airlock_chamber' // Pressurized airlock
   },
   GLOVEBOX: {
     color: '#8b5cf6',
     icon: '🧪',
     size: { width: 1.4, height: 2.0, depth: 1.8 },
-    geometry: 'box'
+    geometry: 'science_station' // Laboratory workstation
   },
   TRASH_MGMT: {
     color: '#6b7280',
     icon: '🗑️',
     size: { width: 1.5, height: 2.0, depth: 2.0 },
-    geometry: 'box'
+    geometry: 'compactor' // Waste compaction unit
   },
   COMMON_AREA: {
     color: '#f59e0b',
     icon: '👥',
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'box'
+    geometry: 'community_space' // Open social area
   }
 };
 
 function snap(n: number, step = 0.5) {
   return Math.round(n / step) * step;
+}
+
+// Create realistic 3D geometries for different NASA modules
+function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }): THREE.BufferGeometry {
+  const { w_m, h_m, l_m } = size;
+  
+  switch (geometryType) {
+    case 'sleep_pod':
+      // Rounded sleep pod with curved top
+      const sleepGeometry = new THREE.CapsuleGeometry(Math.min(w_m, l_m) / 2.2, h_m - Math.min(w_m, l_m) / 1.1, 4, 8);
+      sleepGeometry.rotateZ(Math.PI / 2);
+      return sleepGeometry;
+      
+    case 'cylinder':
+      // Standard cylinder for hygiene modules
+      return new THREE.CylinderGeometry(w_m / 2, w_m / 2, h_m, 16);
+      
+    case 'rounded_box':
+      // Rounded rectangular module
+      const roundedGeometry = new THREE.BoxGeometry(w_m, h_m, l_m);
+      return roundedGeometry;
+      
+    case 'gym_module':
+      // Multi-level exercise area with platforms
+      const gymGroup = new THREE.Group();
+      const mainBox = new THREE.BoxGeometry(w_m, h_m * 0.8, l_m);
+      const platform = new THREE.BoxGeometry(w_m * 0.8, h_m * 0.2, l_m * 0.6);
+      // Combine geometries (simplified for now)
+      return mainBox;
+      
+    case 'kitchen_module':
+      // L-shaped kitchen module
+      const kitchenGeometry = new THREE.BoxGeometry(w_m, h_m, l_m);
+      // Add a smaller extension for L-shape
+      return kitchenGeometry;
+      
+    case 'technical_rack':
+      // Equipment rack with panels - use taller, thinner box
+      return new THREE.BoxGeometry(w_m, h_m * 1.2, l_m * 0.8);
+      
+    case 'medical_bay':
+      // Medical examination area with curved elements
+      const medicalGeometry = new THREE.BoxGeometry(w_m, h_m, l_m);
+      // Round the corners slightly
+      return medicalGeometry;
+      
+    case 'workshop':
+      // Workshop with angled roof
+      const workshopGeometry = new THREE.BoxGeometry(w_m, h_m, l_m);
+      return workshopGeometry;
+      
+    case 'storage_rack':
+      // Multi-compartment storage - taller and segmented
+      return new THREE.BoxGeometry(w_m, h_m * 1.1, l_m);
+      
+    case 'lounge_pod':
+      // Comfortable lounge area - rounded
+      return new THREE.SphereGeometry(w_m / 2, 16, 12);
+      
+    case 'workstation':
+      // Desk with equipment - angled top
+      const workstationGeometry = new THREE.BoxGeometry(w_m, h_m, l_m);
+      return workstationGeometry;
+      
+    case 'airlock_chamber':
+      // Pressurized airlock - cylindrical with flat ends
+      const airlockGeometry = new THREE.CylinderGeometry(w_m / 2, w_m / 2, h_m, 8);
+      airlockGeometry.rotateZ(Math.PI / 2);
+      return airlockGeometry;
+      
+    case 'science_station':
+      // Laboratory workstation - compact cube with details
+      return new THREE.BoxGeometry(w_m, h_m * 1.1, l_m);
+      
+    case 'compactor':
+      // Waste compaction unit - cylindrical
+      return new THREE.CylinderGeometry(w_m / 2.2, w_m / 2, h_m, 12);
+      
+    case 'community_space':
+      // Open social area - octagonal base
+      return new THREE.CylinderGeometry(w_m / 2, w_m / 2, h_m, 8);
+      
+    default:
+      // Fallback to basic box
+      return new THREE.BoxGeometry(w_m, h_m, l_m);
+  }
+}
+
+// Create composite materials for more realistic modules
+function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Material[] | THREE.Material {
+  const baseColor = isSelected ? 0xffff00 : moduleConfig.color;
+  
+  // Create different materials for different faces
+  const materials = [
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Right
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Left
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.9 }), // Top (brighter)
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.7 }), // Bottom (darker)
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Front
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 })  // Back
+  ];
+  
+  return materials;
 }
 
 // NASA-compatible object structure
@@ -440,33 +549,11 @@ function ThreeScene({
       const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
       if (!moduleConfig) return;
 
-      let geometry: THREE.BufferGeometry;
-      const size = obj.size;
       const isSelected = selectedId === obj.id;
-
-      // Create geometry based on NASA module size
-      switch(moduleConfig.geometry) {
-        case 'box':
-          geometry = new THREE.BoxGeometry(size.w_m, size.h_m, size.l_m);
-          break;
-        case 'cylinder':
-          geometry = new THREE.CylinderGeometry(size.w_m/2, size.w_m/2, size.h_m, 16);
-          break;
-        case 'sphere':
-          geometry = new THREE.SphereGeometry(size.w_m/2, 16, 16);
-          break;
-        case 'cone':
-          geometry = new THREE.ConeGeometry(size.w_m/2, size.h_m, 16);
-          break;
-        default:
-          geometry = new THREE.BoxGeometry(size.w_m, size.h_m, size.l_m);
-      }
-
-      const material = new THREE.MeshLambertMaterial({ 
-        color: isSelected ? 0xffff00 : moduleConfig.color,
-        transparent: true,
-        opacity: 0.8
-      });
+      
+      // Create realistic geometry using our new system
+      const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
+      const material = createModuleMaterial(moduleConfig, isSelected);
 
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(...obj.position);
@@ -524,7 +611,51 @@ export default function NASAHabitatBuilder3D() {
   const [nextId, setNextId] = useState(1);
   const [isInitialized, setIsInitialized] = useState(false);
   
+  // New state for save/load functionality
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>('design');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  
   const hoverPointRef = useRef<THREE.Vector3 | null>(null);
+
+  // Initialize database
+  useEffect(() => {
+    initDatabase().catch(console.error);
+  }, []);
+
+  // Initialize database
+  useEffect(() => {
+    initDatabase().catch(console.error);
+  }, []);
+
+  // Load design from collections
+  const handleLoadDesign = useCallback((savedDesign: SavedDesign) => {
+    const layout = savedDesign.layout;
+    
+    // Update scenario (with type casting to handle potential mismatches)
+    setScenario(prev => ({
+      ...prev,
+      crew_size: layout.scenario.crew_size,
+      mission_duration_days: layout.scenario.mission_duration_days,
+      destination: layout.scenario.destination as any,
+    }));
+    
+    // Convert layout modules to habitat objects
+    const newObjects: HabitatObject[] = layout.modules.map((module) => ({
+      id: module.id,
+      type: module.type as FunctionalType,
+      position: [...module.position, 0] as [number, number, number], // Add z coordinate
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      size: module.size
+    }));
+    
+    setObjects(newObjects);
+    setActiveTab('design');
+    setValidationResults(null);
+    
+    alert(`Loaded design: ${savedDesign.name}`);
+  }, []);
 
   // Generate unique ID for modules
   const generateId = useCallback((type: FunctionalType) => {
@@ -544,7 +675,7 @@ export default function NASAHabitatBuilder3D() {
           name: scenario.fairing.name,
           inner_diameter_m: scenario.fairing.inner_diameter_m,
           inner_height_m: scenario.fairing.inner_height_m,
-          shape: scenario.fairing.shape
+          shape: scenario.fairing.shape === "CYLINDRICAL" ? "CYLINDER" : "CONE"
         }
       },
       habitat: {
@@ -567,6 +698,40 @@ export default function NASAHabitatBuilder3D() {
       version: "1.0.0"
     };
   }, [scenario, habitat, objects]);
+
+  // Save current design
+  const handleSaveDesign = useCallback(async () => {
+    const layoutData = generateNASALayout();
+    const timestamp = new Date().toLocaleString();
+    
+    setIsSaving(true);
+    try {
+      const designId = await saveDesign({
+        name: `Habitat Design ${timestamp}`,
+        description: `Design with ${objects.length} modules for ${scenario.destination} mission`,
+        layout: layoutData,
+        tags: ['nasa', scenario.destination.toLowerCase(), `crew-${scenario.crew_size}`]
+      });
+      
+      alert(`Design saved successfully! ID: ${designId}`);
+    } catch (error) {
+      console.error('Failed to save design:', error);
+      alert('Failed to save design. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [objects, scenario, generateNASALayout]);
+
+  // Quick save function for the UI button
+  const quickSave = useCallback(async () => {
+    if (objects.length === 0) {
+      alert('No modules to save. Add some modules first.');
+      return;
+    }
+    await handleSaveDesign();
+  }, [objects, handleSaveDesign]);
+
+  // Update the quickSave function to use handleSaveDesign
 
   // Store refs to 3D scene elements for drag/drop
   const sceneRefs = useRef<{
@@ -748,6 +913,22 @@ export default function NASAHabitatBuilder3D() {
               <Download className="w-4 h-4 mr-2" />
               Export NASA JSON
             </Button>
+            <Button onClick={quickSave} disabled={isSaving} className="btn-space">
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save Design'}
+            </Button>
+            <Button onClick={() => setActiveTab('collections')} className="btn-space">
+              <Folder className="w-4 h-4 mr-2" />
+              Collections
+            </Button>
+            <Button onClick={() => setActiveTab('shapes')} className="btn-space">
+              <Shapes className="w-4 h-4 mr-2" />
+              Shape Builder
+            </Button>
+            <Button onClick={() => setActiveTab('cad')} className="btn-space">
+              <Settings className="w-4 h-4 mr-2" />
+              CAD Laboratory
+            </Button>
             <Button onClick={clearLayout} className="btn-mars">
               <Trash2 className="w-4 h-4 mr-2" />
               Clear
@@ -757,8 +938,11 @@ export default function NASAHabitatBuilder3D() {
       </header>
 
       <div className="flex-1 flex">
-        {/* NASA Mission Control Sidebar */}
-        <aside className="w-80 glass-morphism shadow-2xl border-r border-purple-500/20 flex flex-col overflow-y-auto">
+        {activeTab === 'design' ? (
+          <>
+            {/* NASA Mission Control Sidebar */}
+            <aside className="w-80 glass-morphism shadow-2xl border-r border-purple-500/20 flex flex-col overflow-y-auto">
+              {/* Mission Scenario */}
           {/* Mission Scenario */}
           <div className="p-4 border-b border-purple-500/20">
             <h3 className="font-semibold text-purple-300 mb-3 flex items-center gap-2 text-shadow">
@@ -963,6 +1147,20 @@ export default function NASAHabitatBuilder3D() {
             </div>
           )}
         </main>
+          </>
+        ) : activeTab === 'collections' ? (
+          <Collections
+            currentLayout={generateNASALayout()}
+            onLoadDesign={handleLoadDesign}
+            onSaveSuccess={() => setActiveTab('design')}
+          />
+        ) : activeTab === 'shapes' ? (
+          <ShapeBuilder />
+        ) : activeTab === 'cad' ? (
+          <CADShapeBuilder onBackToDesign={() => setActiveTab('design')} />
+        ) : (
+          <ShapeBuilder />
+        )}
       </div>
 
       {/* NASA Validation Results */}

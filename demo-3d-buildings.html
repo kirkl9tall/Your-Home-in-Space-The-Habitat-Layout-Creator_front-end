@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASA Habitat 3D Buildings Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, #0f0f2e, #1a1a3e);
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 2px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #5b52f0, #8b4bf2);
+            transform: translateY(-2px);
+        }
+        
+        h3 {
+            margin: 0 0 10px 0;
+            color: #64ffda;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>NASA Habitat 3D Buildings</h3>
+        <div>Realistic 3D module shapes for space habitats</div>
+        <div style="margin-top: 10px; font-size: 12px;">
+            • <strong>Sleep Pods:</strong> Capsule-shaped<br>
+            • <strong>Hygiene:</strong> Cylindrical<br>
+            • <strong>Recreation:</strong> Spherical dome<br>
+            • <strong>Airlock:</strong> Ring-shaped<br>
+            • <strong>Storage:</strong> Tall rectangular<br>
+            • <strong>Workshop:</strong> Angled roof
+        </div>
+    </div>
+    
+    <div id="controls">
+        <h3>View Controls</h3>
+        <button onclick="rotateView()">Rotate View</button>
+        <button onclick="zoomIn()">Zoom In</button>
+        <button onclick="zoomOut()">Zoom Out</button>
+        <button onclick="resetView()">Reset View</button>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let modules = [];
+        let isRotating = false;
+
+        // NASA module configurations with realistic geometries
+        const MODULE_TYPES_3D = {
+            CREW_SLEEP: { 
+                name: "Crew Sleep", 
+                color: 0x4A90E2,
+                size: { w_m: 2.0, h_m: 2.5, l_m: 1.5 },
+                geometry: 'sleep_pod'
+            },
+            HYGIENE: { 
+                name: "Hygiene", 
+                color: 0x50E3C2,
+                size: { w_m: 1.8, h_m: 2.2, l_m: 1.8 },
+                geometry: 'cylinder'
+            },
+            RECREATION: { 
+                name: "Recreation", 
+                color: 0xF5A623,
+                size: { w_m: 3.0, h_m: 2.8, l_m: 3.0 },
+                geometry: 'lounge_pod'
+            },
+            AIRLOCK: { 
+                name: "Airlock", 
+                color: 0xD0021B,
+                size: { w_m: 2.5, h_m: 2.5, l_m: 1.0 },
+                geometry: 'airlock_chamber'
+            },
+            STOWAGE: { 
+                name: "Storage", 
+                color: 0x9013FE,
+                size: { w_m: 2.2, h_m: 3.0, l_m: 1.5 },
+                geometry: 'storage_rack'
+            },
+            MAINTENANCE: { 
+                name: "Workshop", 
+                color: 0xFF6B35,
+                size: { w_m: 2.8, h_m: 2.5, l_m: 2.0 },
+                geometry: 'workshop'
+            }
+        };
+
+        function createModuleGeometry(geometryType, size) {
+            const { w_m, h_m, l_m } = size;
+            
+            switch (geometryType) {
+                case 'sleep_pod':
+                    // Capsule-shaped sleep pod
+                    const sleepGeometry = new THREE.CapsuleGeometry(Math.min(w_m, l_m) / 2.2, h_m - Math.min(w_m, l_m) / 1.1, 4, 8);
+                    sleepGeometry.rotateZ(Math.PI / 2);
+                    return sleepGeometry;
+                    
+                case 'cylinder':
+                    return new THREE.CylinderGeometry(w_m / 2, w_m / 2, h_m, 16);
+                    
+                case 'lounge_pod':
+                    return new THREE.SphereGeometry(w_m / 2, 16, 12);
+                    
+                case 'airlock_chamber':
+                    const airlockGeometry = new THREE.CylinderGeometry(w_m / 2, w_m / 2, h_m, 8);
+                    airlockGeometry.rotateZ(Math.PI / 2);
+                    return airlockGeometry;
+                    
+                case 'storage_rack':
+                    return new THREE.BoxGeometry(w_m, h_m * 1.1, l_m);
+                    
+                case 'workshop':
+                    return new THREE.BoxGeometry(w_m, h_m, l_m);
+                    
+                default:
+                    return new THREE.BoxGeometry(w_m, h_m, l_m);
+            }
+        }
+
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(8, 6, 8);
+            camera.lookAt(0, 0, 0);
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Add space station base platform
+            const platformGeometry = new THREE.CylinderGeometry(8, 8, 0.2, 32);
+            const platformMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x333366, 
+                transparent: true, 
+                opacity: 0.7 
+            });
+            const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.position.y = -0.1;
+            platform.receiveShadow = true;
+            scene.add(platform);
+
+            // Create and place NASA modules in a circle
+            let angle = 0;
+            const radius = 4;
+            const moduleTypes = Object.keys(MODULE_TYPES_3D);
+            
+            moduleTypes.forEach((moduleType, index) => {
+                const config = MODULE_TYPES_3D[moduleType];
+                const geometry = createModuleGeometry(config.geometry, config.size);
+                
+                const material = new THREE.MeshLambertMaterial({ 
+                    color: config.color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                
+                // Position in circle
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                mesh.position.set(x, config.size.h_m / 2, z);
+                
+                // Add label
+                mesh.userData = { name: config.name, type: moduleType };
+                
+                scene.add(mesh);
+                modules.push(mesh);
+                
+                angle += (Math.PI * 2) / moduleTypes.length;
+            });
+
+            // Add stars
+            addStars();
+        }
+
+        function addStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({ color: 0xFFFFFF, size: 2 });
+            
+            const starsVertices = [];
+            for (let i = 0; i < 1000; i++) {
+                const x = (Math.random() - 0.5) * 200;
+                const y = (Math.random() - 0.5) * 200;
+                const z = (Math.random() - 0.5) * 200;
+                starsVertices.push(x, y, z);
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isRotating) {
+                camera.position.x = Math.cos(Date.now() * 0.001) * 10;
+                camera.position.z = Math.sin(Date.now() * 0.001) * 10;
+                camera.lookAt(0, 0, 0);
+            }
+            
+            // Gentle rotation of modules
+            modules.forEach((module, index) => {
+                module.rotation.y += 0.005 + index * 0.001;
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        function rotateView() {
+            isRotating = !isRotating;
+        }
+
+        function zoomIn() {
+            camera.position.multiplyScalar(0.9);
+        }
+
+        function zoomOut() {
+            camera.position.multiplyScalar(1.1);
+        }
+
+        function resetView() {
+            isRotating = false;
+            camera.position.set(8, 6, 8);
+            camera.lookAt(0, 0, 0);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize and start animation
+        init();
+        animate();
+    </script>
+</body>
+</html>
