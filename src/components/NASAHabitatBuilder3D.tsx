@@ -1608,34 +1608,48 @@ export default function NASAHabitatBuilder3D() {
             {/* NASA Mission Control Sidebar */}
             <aside className="w-80 glass-morphism shadow-2xl border-r border-purple-500/20 flex flex-col overflow-y-auto">
               {/* Mission Scenario */}
-          {/* Mission Scenario */}
-          <div className="p-4 border-b border-purple-500/20">
-            <h3 className="font-semibold text-purple-300 mb-3 flex items-center gap-2 text-shadow">
+          {/* Mission Scenario - Compact but Editable */}
+          <div className="p-3 border-b border-purple-500/20 bg-gradient-to-br from-blue-900/20 to-purple-900/20">
+            <h3 className="font-semibold text-blue-300 mb-2 flex items-center gap-2 text-shadow">
               <Settings className="w-4 h-4" />
               NASA Mission Scenario
             </h3>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-gray-300 text-sm text-shadow-sm">Crew Size</Label>
-                <Input
-                  type="number"
-                  value={scenario.crew_size}
-                  onChange={(e) => setScenario((prev: Scenario) => ({
-                    ...prev,
-                    crew_size: parseInt(e.target.value) || 0
-                  }))}
-                  className="bg-gray-800/60 border-gray-600/50 text-white text-sm backdrop-blur-sm hover:bg-gray-800/80 transition-colors"
-                />
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-gray-300 text-xs text-shadow-sm">Crew</Label>
+                  <Input
+                    type="number"
+                    value={scenario.crew_size}
+                    onChange={(e) => setScenario((prev: Scenario) => ({
+                      ...prev,
+                      crew_size: parseInt(e.target.value) || 0
+                    }))}
+                    className="bg-gray-800/60 border-gray-600/50 text-white text-xs h-7 backdrop-blur-sm hover:bg-gray-800/80 transition-colors"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300 text-xs text-shadow-sm">Days</Label>
+                  <Input
+                    type="number"
+                    value={scenario.mission_duration_days}
+                    onChange={(e) => setScenario((prev: Scenario) => ({
+                      ...prev,
+                      mission_duration_days: parseInt(e.target.value) || 0
+                    }))}
+                    className="bg-gray-800/60 border-gray-600/50 text-white text-xs h-7 backdrop-blur-sm hover:bg-gray-800/80 transition-colors"
+                  />
+                </div>
               </div>
               <div>
-                <Label className="text-gray-300 text-sm text-shadow-sm">Destination</Label>
+                <Label className="text-gray-300 text-xs text-shadow-sm">Destination</Label>
                 <select
                   value={scenario.destination}
                   onChange={(e) => setScenario((prev: Scenario) => ({
                     ...prev,
                     destination: e.target.value as any
                   }))}
-                  className="w-full bg-gray-800/60 border border-gray-600/50 text-white text-sm rounded-md px-3 py-2 backdrop-blur-sm hover:bg-gray-800/80 transition-colors focus:ring-2 focus:ring-purple-500/50"
+                  className="w-full bg-gray-800/60 border border-gray-600/50 text-white text-xs h-7 rounded-md px-2 backdrop-blur-sm hover:bg-gray-800/80 transition-colors focus:ring-1 focus:ring-purple-500/50"
                 >
                   <option value="LEO">Low Earth Orbit</option>
                   <option value="LUNAR">Lunar Surface</option>
@@ -1645,19 +1659,7 @@ export default function NASAHabitatBuilder3D() {
                 </select>
               </div>
               <div>
-                <Label className="text-gray-300 text-sm text-shadow-sm">Mission Duration (days)</Label>
-                <Input
-                  type="number"
-                  value={scenario.mission_duration_days}
-                  onChange={(e) => setScenario((prev: Scenario) => ({
-                    ...prev,
-                    mission_duration_days: parseInt(e.target.value) || 0
-                  }))}
-                  className="bg-gray-800/60 border-gray-600/50 text-white text-sm backdrop-blur-sm hover:bg-gray-800/80 transition-colors"
-                />
-              </div>
-              <div>
-                <Label className="text-gray-300 text-sm text-shadow-sm">Launch Vehicle</Label>
+                <Label className="text-gray-300 text-xs text-shadow-sm">Launch Vehicle</Label>
                 <select
                   value={scenario.fairing.name}
                   onChange={(e) => {
@@ -1666,7 +1668,7 @@ export default function NASAHabitatBuilder3D() {
                       setScenario((prev: Scenario) => ({ ...prev, fairing }));
                     }
                   }}
-                  className="w-full bg-gray-800/60 border border-gray-600/50 text-white text-sm rounded-md px-3 py-2 backdrop-blur-sm hover:bg-gray-800/80 transition-colors focus:ring-2 focus:ring-purple-500/50"
+                  className="w-full bg-gray-800/60 border border-gray-600/50 text-white text-xs h-7 rounded-md px-2 backdrop-blur-sm hover:bg-gray-800/80 transition-colors focus:ring-1 focus:ring-purple-500/50"
                 >
                   {FAIRINGS.map(fairing => (
                     <option key={fairing.name} value={fairing.name}>
@@ -1678,13 +1680,13 @@ export default function NASAHabitatBuilder3D() {
             </div>
           </div>
 
-          {/* NASA Functional Modules */}
-          <div className="p-4 border-b border-purple-500/20">
-            <h3 className="font-semibold text-purple-300 mb-3 flex items-center gap-2 text-shadow">
+          {/* NASA Functional Areas - Limited with Scroll */}
+          <div className="p-3 border-b border-purple-500/20">
+            <h3 className="font-semibold text-purple-300 mb-2 flex items-center gap-2 text-shadow">
               <Plus className="w-4 h-4" />
               NASA Functional Areas
             </h3>
-            <div className="grid gap-2">
+            <div className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent">
               {Object.entries(MODULE_TYPES_3D).map(([type, config]) => {
                 const preset = MODULE_PRESETS.find(p => p.type === type as FunctionalType);
                 return (
@@ -1692,17 +1694,17 @@ export default function NASAHabitatBuilder3D() {
                     key={type}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("module", type)}
-                    className="group flex items-center gap-3 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 hover:from-purple-800/30 hover:to-purple-700/30 border border-gray-600/50 hover:border-purple-400/60 rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-purple"
+                    className="group flex items-center gap-2 p-2 bg-gradient-to-r from-gray-800/40 to-gray-700/40 hover:from-purple-800/30 hover:to-purple-700/30 border border-gray-600/50 hover:border-purple-400/60 rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-purple"
                   >
                     <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-base shadow-lg"
+                      className="w-6 h-6 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0"
                       style={{ backgroundColor: config.color }}
                     >
                       {config.icon}
                     </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-100 text-sm text-shadow-sm">{preset?.label || type}</div>
-                      <div className="text-xs text-gray-400">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-100 text-xs text-shadow-sm truncate">{preset?.label || type}</div>
+                      <div className="text-[10px] text-gray-400">
                         {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
                       </div>
                     </div>
@@ -1710,35 +1712,32 @@ export default function NASAHabitatBuilder3D() {
                 );
               })}
             </div>
+            <div className="text-xs text-gray-400 text-center mt-1">
+              Scroll to see all {Object.keys(MODULE_TYPES_3D).length} functional areas
+            </div>
           </div>
 
-          {/* CAD Custom Designs */}
+          {/* Custom CAD Modules - Scrollable */}
           {cadDesigns.length > 0 && (
-            <div className="p-4 border-b border-purple-500/20">
-              <h3 className="font-semibold text-purple-300 mb-3 flex items-center gap-2 text-shadow">
+            <div className="p-3 border-b border-purple-500/20">
+              <h3 className="font-semibold text-orange-300 mb-2 flex items-center gap-2 text-shadow">
                 <Settings className="w-4 h-4" />
                 Custom CAD Modules
               </h3>
-              <div className="grid gap-2">
+              <div className="max-h-32 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-orange-500/50 scrollbar-track-transparent">
                 {cadDesigns.map((cadDesign) => (
                   <div
                     key={cadDesign.id}
-                    className="group flex items-center gap-3 p-3 bg-gradient-to-r from-purple-800/40 to-purple-700/40 hover:from-purple-700/50 hover:to-purple-600/50 border border-purple-500/50 hover:border-purple-400/70 rounded-xl cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-purple"
+                    className="group flex items-center gap-2 p-2 bg-gradient-to-r from-orange-800/40 to-orange-700/40 hover:from-orange-700/50 hover:to-orange-600/50 border border-orange-500/50 hover:border-orange-400/70 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-orange"
                     onClick={() => createModuleFromCAD(cadDesign)}
                   >
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-base shadow-lg"
-                      style={{ backgroundColor: '#8b5cf6' }}
-                    >
-                      🏗️
+                    <div className="w-6 h-6 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
+                      <Settings className="w-3 h-3" />
                     </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-100 text-sm text-shadow-sm">{cadDesign.name}</div>
-                      <div className="text-xs text-gray-400">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-orange-100 text-xs text-shadow-sm truncate">{cadDesign.name}</div>
+                      <div className="text-[10px] text-orange-300">
                         {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
-                      </div>
-                      <div className="text-xs text-purple-300">
-                        {cadDesign.shapes.length} components
                       </div>
                     </div>
                   </div>
@@ -1746,6 +1745,40 @@ export default function NASAHabitatBuilder3D() {
               </div>
             </div>
           )}
+
+          {/* Quick Actions & Custom Shapes */}
+          <div className="p-3 border-b border-purple-500/20">
+            <h3 className="font-semibold text-green-300 mb-2 flex items-center gap-2 text-shadow">
+              <Plus className="w-4 h-4" />
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              <Button 
+                onClick={addSampleModule} 
+                className="w-full btn-space text-xs py-2 h-8"
+                size="sm"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add Sample Module
+              </Button>
+              <Button 
+                onClick={() => setActiveTab('shapes')} 
+                className="w-full btn-space text-xs py-2 h-8"
+                size="sm"
+              >
+                <Shapes className="w-3 h-3 mr-1" />
+                Custom Shape Builder
+              </Button>
+              <Button 
+                onClick={() => setActiveTab('cad')} 
+                className="w-full btn-space text-xs py-2 h-8"
+                size="sm"
+              >
+                <Settings className="w-3 h-3 mr-1" />
+                CAD Laboratory
+              </Button>
+            </div>
+          </div>
 
           {/* Selected Module Inspector */}
           {selectedObject && (
