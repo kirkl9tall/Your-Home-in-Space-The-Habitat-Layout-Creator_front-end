@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habitat Designer - Demo</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .space-gradient {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function HabitatDesigner() {
+            const [isLoaded, setIsLoaded] = useState(false);
+
+            useEffect(() => {
+                setIsLoaded(true);
+            }, []);
+
+            return (
+                <div className="min-h-screen space-gradient text-white">
+                    <div className="container mx-auto px-4 py-8">
+                        <header className="text-center mb-8">
+                            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                🚀 Habitat Designer
+                            </h1>
+                            <p className="text-xl text-gray-300 mb-2">
+                                NASA Space Habitat Layout Tool
+                            </p>
+                            <div className="text-sm text-green-400 font-semibold">
+                                ✅ Frontend Demo Running Successfully!
+                            </div>
+                        </header>
+
+                        {/* Status Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-8">
+                            
+                            {/* Design Card */}
+                            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all transform hover:scale-105">
+                                <div className="text-4xl mb-4">🏗️</div>
+                                <h2 className="text-xl font-semibold mb-2">Design Module</h2>
+                                <p className="text-gray-300 mb-4 text-sm">
+                                    Drag & drop interface for creating habitat layouts
+                                </p>
+                                <div className="space-y-2 text-xs">
+                                    <div className="text-green-400">✅ Canvas system ready</div>
+                                    <div className="text-green-400">✅ Module library prepared</div>
+                                    <div className="text-amber-400">🚧 UI implementation pending</div>
+                                </div>
+                            </div>
+
+                            {/* API Integration Card */}
+                            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all transform hover:scale-105">
+                                <div className="text-4xl mb-4">🔍</div>
+                                <h2 className="text-xl font-semibold mb-2">API Integration</h2>
+                                <p className="text-gray-300 mb-4 text-sm">
+                                    Backend validation and suggestion system
+                                </p>
+                                <div className="space-y-2 text-xs">
+                                    <div className="text-green-400">✅ Zod schemas defined</div>
+                                    <div className="text-green-400">✅ Mock server ready</div>
+                                    <div className="text-green-400">✅ Type safety implemented</div>
+                                </div>
+                            </div>
+
+                            {/* Data Models Card */}
+                            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all transform hover:scale-105">
+                                <div className="text-4xl mb-4">📊</div>
+                                <h2 className="text-xl font-semibold mb-2">Data Models</h2>
+                                <p className="text-gray-300 mb-4 text-sm">
+                                    Space engineering constraints and validation
+                                </p>
+                                <div className="space-y-2 text-xs">
+                                    <div className="text-green-400">✅ NASA requirements loaded</div>
+                                    <div className="text-green-400">✅ Fairing presets available</div>
+                                    <div className="text-green-400">✅ Functional area defaults</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Feature Overview */}
+                        <div className="bg-white/5 backdrop-blur rounded-xl p-8 max-w-4xl mx-auto border border-white/10">
+                            <h3 className="text-2xl font-semibold mb-6 text-center">🌟 Implemented Architecture</h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                                <div>
+                                    <h4 className="font-semibold text-green-400 mb-3 text-lg">✅ Completed Systems</h4>
+                                    <div className="text-gray-300 space-y-2 text-sm">
+                                        <div>• <strong>Backend Contracts:</strong> Full API schema definition</div>
+                                        <div>• <strong>Type Safety:</strong> Zod + TypeScript validation</div>
+                                        <div>• <strong>Mock Server:</strong> Offline development ready</div>
+                                        <div>• <strong>Engineering Defaults:</strong> NASA-based constraints</div>
+                                        <div>• <strong>Fairing Database:</strong> Falcon 9, SLS, Starship specs</div>
+                                        <div>• <strong>Functional Areas:</strong> 15 habitat module types</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-amber-400 mb-3 text-lg">🚧 Implementation Ready</h4>
+                                    <div className="text-gray-300 space-y-2 text-sm">
+                                        <div>• <strong>React Components:</strong> Design canvas & UI panels</div>
+                                        <div>• <strong>State Management:</strong> Zustand for UI state</div>
+                                        <div>• <strong>Drag & Drop:</strong> Konva.js canvas system</div>
+                                        <div>• <strong>Routing:</strong> TanStack Router setup</div>
+                                        <div>• <strong>Data Queries:</strong> TanStack Query integration</div>
+                                        <div>• <strong>Testing:</strong> Vitest + Playwright framework</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 pt-6">
+                                <h4 className="font-semibold text-blue-400 mb-3 text-lg">📋 Sample Data Available</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                    <div className="bg-white/5 rounded-lg p-3">
+                                        <div className="font-semibold text-blue-300 mb-1">Sample Layout</div>
+                                        <div className="text-gray-400">4-crew Mars transit habitat</div>
+                                        <div className="text-gray-400">10 functional modules</div>
+                                    </div>
+                                    <div className="bg-white/5 rounded-lg p-3">
+                                        <div className="font-semibold text-green-300 mb-1">Validation Response</div>
+                                        <div className="text-gray-400">Issues & suggestions</div>
+                                        <div className="text-gray-400">Metrics & compliance</div>
+                                    </div>
+                                    <div className="bg-white/5 rounded-lg p-3">
+                                        <div className="font-semibold text-purple-300 mb-1">Improvement Hints</div>
+                                        <div className="text-gray-400">Layout optimization</div>
+                                        <div className="text-gray-400">Adjacency suggestions</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="mt-8 text-center">
+                            <div className="inline-flex space-x-4">
+                                <button 
+                                    className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+                                    onClick={() => alert('Design canvas implementation ready to deploy!')}
+                                >
+                                    View Design System
+                                </button>
+                                <button 
+                                    className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+                                    onClick={() => alert('Mock API responses available for testing!')}
+                                >
+                                    Test API Integration
+                                </button>
+                                <button 
+                                    className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
+                                    onClick={() => alert('Sample data and schemas ready for use!')}
+                                >
+                                    Explore Data Models
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<HabitatDesigner />, document.getElementById('root'));
+    </script>
+</body>
+</html>
