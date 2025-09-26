@@ -179,7 +179,14 @@ const DEFAULT_LAYERS: CADLayer[] = [
   { id: 'layer-3', name: 'Connectors', visible: true, locked: false, color: '#EF4444', shapes: [] }
 ];
 
-const CADShapeBuilder: React.FC<{ onBackToDesign?: () => void }> = ({ onBackToDesign }) => {
+const CADShapeBuilder: React.FC<{ 
+  onBackToDesign?: () => void;
+  onSaveDesign?: (design: {
+    name: string;
+    shapes: CADShape[];
+    bounds: { width: number; height: number; depth: number };
+  }) => void;
+}> = ({ onBackToDesign, onSaveDesign }) => {
   // Core state
   const [shapes, setShapes] = useState<Map<string, CADShape>>(new Map());
   const [layers, setLayers] = useState<CADLayer[]>(DEFAULT_LAYERS);
@@ -872,6 +879,20 @@ const CADShapeBuilder: React.FC<{ onBackToDesign?: () => void }> = ({ onBackToDe
 
       await saveCustomShape(customShape);
       setSaveStatus('Project saved successfully! Available in Collections for drag-and-drop.');
+      
+      // Also call the callback to make it available in NASA design area
+      if (onSaveDesign) {
+        const shapesArray = Array.from(shapes.values());
+        onSaveDesign({
+          name: projectName.trim(),
+          shapes: shapesArray,
+          bounds: {
+            width: maxX - minX || 5,
+            height: maxY - minY || 5,
+            depth: maxZ - minZ || 5
+          }
+        });
+      }
       
       setTimeout(() => setSaveStatus(null), 3000);
       

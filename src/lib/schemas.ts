@@ -17,7 +17,8 @@ export const FunctionalTypeSchema = z.enum([
   "AIRLOCK",
   "GLOVEBOX",
   "TRASH_MGMT",
-  "COMMON_AREA"
+  "COMMON_AREA",
+  "CUSTOM_CAD"
 ]);
 
 export type FunctionalType = z.infer<typeof FunctionalTypeSchema>;

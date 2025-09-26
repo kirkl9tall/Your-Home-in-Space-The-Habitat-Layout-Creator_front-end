@@ -10,7 +10,7 @@ import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, C
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import { postCheckLayout, postSuggestLayout } from '@/lib/api';
-import { Layout, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
+import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
 
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
@@ -67,6 +67,12 @@ const MODULE_TYPES_3D = {
     icon: '🔧', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
     geometry: 'workshop' // Workshop with tool storage
+  },
+  CUSTOM_CAD: { 
+    color: '#8b5cf6', 
+    icon: '🏗️', 
+    size: { width: 2.0, height: 2.0, depth: 2.0 },
+    geometry: 'custom' // Custom CAD-designed module
   },
   STOWAGE: {
     color: '#f97316',
@@ -242,7 +248,8 @@ function ThreeScene({
   hoverPointRef, 
   isInitialized, 
   setIsInitialized,
-  sceneRefs 
+  sceneRefs,
+  onContextMenu
 }: {
   objects: HabitatObject[];
   setObjects: React.Dispatch<React.SetStateAction<HabitatObject[]>>;
@@ -257,6 +264,7 @@ function ThreeScene({
     raycaster: THREE.Raycaster | null;
     plane: THREE.Plane | null;
   }>;
+  onContextMenu: (x: number, y: number, objectId: string | null) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
@@ -274,6 +282,7 @@ function ThreeScene({
   const cameraStateRef = useRef({
     isRotating: false,
     isPanning: false,
+    isSpacePressed: false,
     previousMouse: { x: 0, y: 0 },
     spherical: new THREE.Spherical(25, Math.PI / 4, 0),
     target: new THREE.Vector3(0, 0, 0),
@@ -360,7 +369,15 @@ function ThreeScene({
         event.preventDefault();
         const state = cameraStateRef.current;
         
-        if (event.button === 0) { // Left click
+        // Space + left click for camera panning
+        if (state.isSpacePressed && event.button === 0) {
+          state.isPanning = true;
+          state.previousMouse = { x: event.clientX, y: event.clientY };
+          renderer.domElement.style.cursor = 'grabbing';
+          return;
+        }
+        
+        if (event.button === 0) { // Left click (normal object interaction)
           const rect = renderer.domElement.getBoundingClientRect();
           const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
           const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -458,6 +475,13 @@ function ThreeScene({
         const state = cameraStateRef.current;
         state.isRotating = false;
         state.isPanning = false;
+        
+        // Reset cursor based on space key state
+        if (state.isSpacePressed) {
+          renderer.domElement.style.cursor = 'move';
+        } else {
+          renderer.domElement.style.cursor = 'default';
+        }
       }
 
       function handleWheel(event: WheelEvent) {
@@ -474,7 +498,54 @@ function ThreeScene({
       renderer.domElement.addEventListener('mousemove', handleMouseMove);
       renderer.domElement.addEventListener('mouseup', handleMouseUp);
       renderer.domElement.addEventListener('wheel', handleWheel);
-      renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+      renderer.domElement.addEventListener('contextmenu', handleContextMenu);
+      
+      // Add keyboard event listeners for space key camera controls
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+
+      // Keyboard event handlers
+      function handleKeyDown(event: KeyboardEvent) {
+        if (event.code === 'Space') {
+          event.preventDefault();
+          cameraStateRef.current.isSpacePressed = true;
+          renderer.domElement.style.cursor = 'move';
+        }
+      }
+
+      function handleKeyUp(event: KeyboardEvent) {
+        if (event.code === 'Space') {
+          event.preventDefault();
+          cameraStateRef.current.isSpacePressed = false;
+          cameraStateRef.current.isPanning = false;
+          cameraStateRef.current.isRotating = false;
+          renderer.domElement.style.cursor = 'default';
+        }
+      }
+
+      // Handle right-click for context menu
+      function handleContextMenu(event: MouseEvent) {
+        event.preventDefault();
+        
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        
+        raycasterRef.current.setFromCamera(mouse, camera);
+        const intersects = raycasterRef.current.intersectObjects(scene.children, true);
+        
+        let objectId = null;
+        for (const intersect of intersects) {
+          if (intersect.object.userData.id) {
+            objectId = intersect.object.userData.id;
+            break;
+          }
+        }
+        
+        onContextMenu(event.clientX, event.clientY, objectId);
+      }
 
       // Animation loop
       function animate() {
@@ -511,8 +582,12 @@ function ThreeScene({
           renderer.domElement.removeEventListener('mousemove', handleMouseMove);
           renderer.domElement.removeEventListener('mouseup', handleMouseUp);
           renderer.domElement.removeEventListener('wheel', handleWheel);
-          renderer.domElement.removeEventListener('contextmenu', e => e.preventDefault());
+          renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
         }
+        
+        // Remove keyboard event listeners
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
         
         if (mountRef.current && renderer.domElement) {
           mountRef.current.removeChild(renderer.domElement);
@@ -582,14 +657,45 @@ function ThreeScene({
   );
 }
 
+// Utility functions for localStorage persistence
+const loadFromStorage = (key: string, defaultValue: any): any => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch (error) {
+    console.warn(`Failed to load ${key} from storage:`, error);
+    return defaultValue;
+  }
+};
+
+const saveToStorage = (key: string, value: any): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Failed to save ${key} to storage:`, error);
+  }
+};
+
 export default function NASAHabitatBuilder3D() {
+  // Storage keys for persistence
+  const STORAGE_KEYS = {
+    SCENARIO: 'nasa-habitat-scenario',
+    OBJECTS: 'nasa-habitat-objects', 
+    SELECTED_ID: 'nasa-habitat-selected-id',
+    CAD_DESIGNS: 'nasa-habitat-cad-designs',
+    VALIDATION_RESULTS: 'nasa-habitat-validation-results',
+    ACTIVE_TAB: 'nasa-habitat-active-tab'
+  };
+
   // NASA Mission Scenario
-  const [scenario, setScenario] = useState({
-    crew_size: 4,
-    mission_duration_days: 900,
-    destination: 'MARS_TRANSIT' as const,
-    fairing: FAIRINGS[2] // SLS Block-1
-  });
+  const [scenario, setScenario] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.SCENARIO, {
+      crew_size: 4,
+      mission_duration_days: 900,
+      destination: 'MARS_TRANSIT' as const,
+      fairing: FAIRINGS[2] // SLS Block-1
+    })
+  );
   
   // Habitat Configuration
   const [habitat, setHabitat] = useState({
@@ -603,18 +709,53 @@ export default function NASAHabitatBuilder3D() {
     net_habitable_volume_m3: 300
   });
   
-  const [objects, setObjects] = useState<HabitatObject[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [validationResults, setValidationResults] = useState<any>(null);
+  const [objects, setObjects] = useState<HabitatObject[]>(() => 
+    loadFromStorage(STORAGE_KEYS.OBJECTS, [])
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(() => 
+    loadFromStorage(STORAGE_KEYS.SELECTED_ID, null)
+  );
+  const [validationResults, setValidationResults] = useState<any>(() => 
+    loadFromStorage(STORAGE_KEYS.VALIDATION_RESULTS, null)
+  );
   const [loading, setLoading] = useState({ validation: false });
   const [showHelp, setShowHelp] = useState(false);
   const [nextId, setNextId] = useState(1);
   const [isInitialized, setIsInitialized] = useState(false);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>('design');
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>(() => 
+    loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    objectId: string | null;
+  }>({ visible: false, x: 0, y: 0, objectId: null });
+  
+  // Clipboard for copy/paste
+  const [clipboard, setClipboard] = useState<HabitatObject | null>(null);
+  
+  // Popup control states
+  const [showDesignPopup, setShowDesignPopup] = useState(false);
+  const [showCADPopup, setShowCADPopup] = useState(false);
+  const [showImportExportPopup, setShowImportExportPopup] = useState(false);
+  const [showCameraHelp, setShowCameraHelp] = useState(true);
+  const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
+  
+  // CAD Integration - Store imported CAD designs with persistence
+  const [cadDesigns, setCadDesigns] = useState<Array<{
+    id: string;
+    name: string;
+    shapes: any[];
+    bounds: { width: number; height: number; depth: number };
+    thumbnail?: string;
+  }>>(() => loadFromStorage(STORAGE_KEYS.CAD_DESIGNS, []));
   
   const hoverPointRef = useRef<THREE.Vector3 | null>(null);
 
@@ -623,17 +764,228 @@ export default function NASAHabitatBuilder3D() {
     initDatabase().catch(console.error);
   }, []);
 
-  // Initialize database
+  // Persistence effects - save state to localStorage when it changes
   useEffect(() => {
-    initDatabase().catch(console.error);
+    saveToStorage(STORAGE_KEYS.OBJECTS, objects);
+  }, [objects]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SCENARIO, scenario);
+  }, [scenario]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SELECTED_ID, selectedId);
+  }, [selectedId]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
+  }, [cadDesigns]);
+
+  // Close popups when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.popup-container') && !target.closest('button')) {
+        setShowDesignPopup(false);
+        setShowCADPopup(false);
+        setShowImportExportPopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
+
+  // Keyboard controls for selected objects
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (!selectedId) return;
+      
+      // Skip if user is typing in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // Prevent default behavior for arrow keys to avoid page scrolling
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+        event.preventDefault();
+      }
+
+      const moveStep = event.shiftKey ? 1.0 : 0.5; // Larger steps with Shift
+      const rotateStep = event.shiftKey ? Math.PI / 4 : Math.PI / 8; // 45° or 22.5°
+
+      let actionDescription = '';
+
+      setObjects(prevObjects => 
+        prevObjects.map(obj => {
+          if (obj.id !== selectedId) return obj;
+
+          const newObj = { ...obj };
+
+          switch (event.code) {
+            // Movement controls
+            case 'ArrowLeft':
+              newObj.position = [obj.position[0] - moveStep, obj.position[1], obj.position[2]];
+              actionDescription = `Moving Left (${moveStep}m)`;
+              break;
+            case 'ArrowRight':
+              newObj.position = [obj.position[0] + moveStep, obj.position[1], obj.position[2]];
+              actionDescription = `Moving Right (${moveStep}m)`;
+              break;
+            case 'ArrowUp':
+              if (event.ctrlKey) {
+                // Ctrl + Up: Move up (Y axis)
+                newObj.position = [obj.position[0], obj.position[1] + moveStep, obj.position[2]];
+                actionDescription = `Moving Up (${moveStep}m)`;
+              } else {
+                // Up: Move forward (Z axis)
+                newObj.position = [obj.position[0], obj.position[1], obj.position[2] - moveStep];
+                actionDescription = `Moving Forward (${moveStep}m)`;
+              }
+              break;
+            case 'ArrowDown':
+              if (event.ctrlKey) {
+                // Ctrl + Down: Move down (Y axis)
+                newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
+                actionDescription = `Moving Down (${moveStep}m)`;
+              } else {
+                // Down: Move backward (Z axis)
+                newObj.position = [obj.position[0], obj.position[1], obj.position[2] + moveStep];
+                actionDescription = `Moving Backward (${moveStep}m)`;
+              }
+              break;
+
+            // Rotation controls
+            case 'KeyQ':
+              // Q: Rotate left around Y axis
+              const currentRotationY = obj.rotation?.[1] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, currentRotationY - rotateStep, obj.rotation?.[2] || 0];
+              actionDescription = `Rotating Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+            case 'KeyE':
+              // E: Rotate right around Y axis
+              const currentRotationY2 = obj.rotation?.[1] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, currentRotationY2 + rotateStep, obj.rotation?.[2] || 0];
+              actionDescription = `Rotating Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+            case 'KeyR':
+              // R: Rotate around X axis (pitch up)
+              const currentRotationX = obj.rotation?.[0] || 0;
+              newObj.rotation = [currentRotationX + rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
+              actionDescription = `Pitch Up (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+            case 'KeyF':
+              // F: Rotate around X axis (pitch down)
+              const currentRotationX2 = obj.rotation?.[0] || 0;
+              newObj.rotation = [currentRotationX2 - rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
+              actionDescription = `Pitch Down (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+
+            // Height controls (Y-axis movement)
+            case 'KeyW':
+              // W: Move up (height)
+              newObj.position = [obj.position[0], obj.position[1] + moveStep, obj.position[2]];
+              actionDescription = `Moving Up (${moveStep}m)`;
+              break;
+            case 'KeyS':
+              // S: Move down (height)
+              newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
+              actionDescription = `Moving Down (${moveStep}m)`;
+              break;
+
+            case 'KeyT':
+              // T: Rotate around Z axis (roll left)
+              const currentRotationZ = obj.rotation?.[2] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ - rotateStep];
+              actionDescription = `Roll Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+            case 'KeyG':
+              // G: Rotate around Z axis (roll right)
+              const currentRotationZ2 = obj.rotation?.[2] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ2 + rotateStep];
+              actionDescription = `Roll Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              break;
+
+            // Scale controls
+            case 'Equal':
+            case 'NumpadAdd':
+              // + or =: Scale up
+              if (event.ctrlKey) {
+                const currentScale = obj.scale || [1, 1, 1];
+                const scaleStep = 0.1;
+                newObj.scale = [
+                  Math.min(currentScale[0] + scaleStep, 3.0),
+                  Math.min(currentScale[1] + scaleStep, 3.0),
+                  Math.min(currentScale[2] + scaleStep, 3.0)
+                ];
+                actionDescription = `Scaling Up (${Math.round((newObj.scale[0]) * 100)}%)`;
+              }
+              break;
+            case 'Minus':
+            case 'NumpadSubtract':
+              // - : Scale down
+              if (event.ctrlKey) {
+                const currentScale = obj.scale || [1, 1, 1];
+                const scaleStep = 0.1;
+                newObj.scale = [
+                  Math.max(currentScale[0] - scaleStep, 0.2),
+                  Math.max(currentScale[1] - scaleStep, 0.2),
+                  Math.max(currentScale[2] - scaleStep, 0.2)
+                ];
+                actionDescription = `Scaling Down (${Math.round((newObj.scale[0]) * 100)}%)`;
+              }
+              break;
+
+            // Reset controls
+            case 'KeyX':
+              // X: Reset rotation
+              if (event.ctrlKey) {
+                newObj.rotation = [0, 0, 0];
+                actionDescription = 'Reset Rotation';
+              }
+              break;
+            case 'KeyC':
+              // C: Reset scale
+              if (event.ctrlKey) {
+                newObj.scale = [1, 1, 1];
+                actionDescription = 'Reset Scale';
+              }
+              break;
+          }
+
+          return newObj;
+        })
+      );
+
+      // Show visual feedback
+      if (actionDescription) {
+        setKeyboardAction(actionDescription);
+        setTimeout(() => setKeyboardAction(null), 1500);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [selectedId]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
+  }, [cadDesigns]);
 
   // Load design from collections
   const handleLoadDesign = useCallback((savedDesign: SavedDesign) => {
     const layout = savedDesign.layout;
     
     // Update scenario (with type casting to handle potential mismatches)
-    setScenario(prev => ({
+    setScenario((prev: Scenario) => ({
       ...prev,
       crew_size: layout.scenario.crew_size,
       mission_duration_days: layout.scenario.mission_duration_days,
@@ -859,6 +1211,231 @@ export default function NASAHabitatBuilder3D() {
     setSelectedId(null);
   };
 
+  // Context menu functions
+  const deleteObject = useCallback((objectId: string) => {
+    setObjects(prev => prev.filter(obj => obj.id !== objectId));
+    if (selectedId === objectId) {
+      setSelectedId(null);
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+  }, [selectedId]);
+
+  const duplicateObject = useCallback((objectId: string) => {
+    const objectToDuplicate = objects.find(obj => obj.id === objectId);
+    if (!objectToDuplicate) return;
+
+    const id = generateId(objectToDuplicate.type);
+    const newObject: HabitatObject = {
+      ...objectToDuplicate,
+      id,
+      position: [
+        objectToDuplicate.position[0] + 2, // Offset by 2 meters
+        objectToDuplicate.position[1],
+        objectToDuplicate.position[2] + 2
+      ]
+    };
+
+    setObjects(prev => [...prev, newObject]);
+    setSelectedId(id);
+    setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+  }, [objects, generateId]);
+
+  const copyObject = useCallback((objectId: string) => {
+    const objectToCopy = objects.find(obj => obj.id === objectId);
+    if (objectToCopy) {
+      setClipboard(objectToCopy);
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+  }, [objects]);
+
+  const pasteObject = useCallback(() => {
+    if (!clipboard) return;
+
+    const id = generateId(clipboard.type);
+    const newObject: HabitatObject = {
+      ...clipboard,
+      id,
+      position: [
+        clipboard.position[0] + 2, // Offset by 2 meters
+        clipboard.position[1],
+        clipboard.position[2] + 2
+      ]
+    };
+
+    setObjects(prev => [...prev, newObject]);
+    setSelectedId(id);
+    setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+  }, [clipboard, generateId]);
+
+  const resizeObject = useCallback((objectId: string, scale: number) => {
+    setObjects(prev => prev.map(obj => {
+      if (obj.id === objectId) {
+        const currentScale = obj.scale || [1, 1, 1];
+        return {
+          ...obj,
+          scale: [currentScale[0] * scale, currentScale[1] * scale, currentScale[2] * scale]
+        };
+      }
+      return obj;
+    }));
+    setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+  }, []);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' && selectedId) {
+        deleteObject(selectedId);
+      } else if (e.ctrlKey && e.key === 'c' && selectedId) {
+        copyObject(selectedId);
+      } else if (e.ctrlKey && e.key === 'v' && clipboard) {
+        pasteObject();
+      } else if (e.ctrlKey && e.key === 'd' && selectedId) {
+        e.preventDefault();
+        duplicateObject(selectedId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, clipboard, deleteObject, copyObject, pasteObject, duplicateObject]);
+
+  // Handle global click to hide context menu
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (contextMenu.visible) {
+        setContextMenu({ visible: false, x: 0, y: 0, objectId: null });
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [contextMenu.visible]);
+
+  // CAD Integration Functions
+  const importFromCAD = useCallback(() => {
+    // This would typically load saved CAD designs from database/localStorage
+    // For now, let's simulate some sample CAD designs
+    const sampleCADDesigns = [
+      {
+        id: 'cad-1',
+        name: 'Custom Storage Module',
+        shapes: [
+          { type: 'box', width: 2, height: 2, depth: 1, position: [0, 0, 0] },
+          { type: 'cylinder', radius: 0.5, height: 2, position: [1, 0, 0] }
+        ],
+        bounds: { width: 3, height: 2, depth: 1 }
+      },
+      {
+        id: 'cad-2', 
+        name: 'Curved Living Space',
+        shapes: [
+          { type: 'torus', radius: 1.5, height: 0.3, position: [0, 0, 0] },
+          { type: 'sphere', radius: 1, position: [0, 1, 0] }
+        ],
+        bounds: { width: 3, height: 2, depth: 3 }
+      }
+    ];
+    
+    setCadDesigns(sampleCADDesigns);
+    alert('CAD designs imported! Check the module library for custom modules.');
+  }, []);
+
+  const exportToCAD = useCallback(() => {
+    if (objects.length === 0) {
+      alert('No modules to export to CAD. Add some modules first.');
+      return;
+    }
+    
+    // Convert current habitat objects to CAD format
+    const cadExport = {
+      name: `Habitat Export ${new Date().toISOString().split('T')[0]}`,
+      objects: objects.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        position: obj.position,
+        rotation: obj.rotation || [0, 0, 0],
+        scale: obj.scale || [1, 1, 1],
+        size: obj.size
+      })),
+      bounds: {
+        width: Math.max(...objects.map(o => o.position[0] + o.size.w_m)) - Math.min(...objects.map(o => o.position[0])),
+        height: Math.max(...objects.map(o => o.size.h_m)),
+        depth: Math.max(...objects.map(o => o.position[2] + o.size.l_m)) - Math.min(...objects.map(o => o.position[2]))
+      }
+    };
+    
+    // Export to JSON (could be sent to CAD system)
+    const blob = new Blob([JSON.stringify(cadExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'habitat-for-cad.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    alert('Habitat exported to CAD format!');
+  }, [objects]);
+
+  const createModuleFromCAD = useCallback((cadDesign: any) => {
+    const id = generateId('CUSTOM_CAD');
+    const newObject: HabitatObject = {
+      id,
+      type: 'CUSTOM_CAD' as any,
+      position: [0, cadDesign.bounds.height / 2, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      size: {
+        w_m: cadDesign.bounds.width,
+        h_m: cadDesign.bounds.height,
+        l_m: cadDesign.bounds.depth
+      }
+    };
+    
+    setObjects(prev => [...prev, newObject]);
+    setSelectedId(id);
+    alert(`Added custom CAD module: ${cadDesign.name}`);
+  }, [generateId]);
+
+  // Create a new empty design
+  const createNewDesign = () => {
+    // Clear existing objects
+    setObjects([]);
+    setSelectedId(null);
+    
+    // Reset scenario to defaults
+    setScenario({
+      crew_size: 4,
+      mission_duration_days: 365,
+      destination: 'mars',
+      fairing: 'falcon_heavy'
+    });
+    
+    // Add a sample module to get started
+    const id = generateId('CREW_SLEEP');
+    const modulePreset = MODULE_PRESETS.find(p => p.type === 'CREW_SLEEP');
+    if (modulePreset) {
+      const newObject: HabitatObject = {
+        id,
+        type: 'CREW_SLEEP',
+        position: [0, 1.5, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        size: modulePreset.defaultSize
+      };
+      setObjects([newObject]);
+      setSelectedId(id);
+    }
+    
+    // Close popups and redirect to design tab
+    setShowDesignPopup(false);
+    setShowCADPopup(false);
+    setShowImportExportPopup(false);
+    setActiveTab('design');
+    
+    alert('New design created! Added a crew sleep module to get you started.');
+  };
+
   // Add sample NASA modules
   const addSampleModule = () => {
     const sampleTypes: FunctionalType[] = ['CREW_SLEEP', 'HYGIENE', 'FOOD_PREP', 'EXERCISE'];
@@ -901,41 +1478,129 @@ export default function NASAHabitatBuilder3D() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button onClick={addSampleModule} className="btn-space">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Sample
-            </Button>
-            <Button onClick={handleNASAValidation} disabled={loading.validation} className="btn-nasa">
-              {loading.validation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-              NASA Validate
-            </Button>
-            <Button onClick={exportNASAJSON} className="btn-space">
-              <Download className="w-4 h-4 mr-2" />
-              Export NASA JSON
-            </Button>
-            <Button onClick={quickSave} disabled={isSaving} className="btn-space">
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Design'}
-            </Button>
-            <Button onClick={() => setActiveTab('collections')} className="btn-space">
-              <Folder className="w-4 h-4 mr-2" />
-              Collections
-            </Button>
-            <Button onClick={() => setActiveTab('shapes')} className="btn-space">
-              <Shapes className="w-4 h-4 mr-2" />
-              Shape Builder
-            </Button>
-            <Button onClick={() => setActiveTab('cad')} className="btn-space">
+            {/* Main Action Buttons */}
+            <Button onClick={() => setShowDesignPopup(!showDesignPopup)} className="btn-space">
               <Settings className="w-4 h-4 mr-2" />
-              CAD Laboratory
+              Design Tools
+            </Button>
+            <Button onClick={() => setShowCADPopup(!showCADPopup)} className="btn-space">
+              <Shapes className="w-4 h-4 mr-2" />
+              CAD Tools
+            </Button>
+            <Button onClick={createNewDesign} className="btn-space">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Design
             </Button>
             <Button onClick={clearLayout} className="btn-mars">
               <Trash2 className="w-4 h-4 mr-2" />
-              Clear
+              Clear All
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Design Tools Popup */}
+      {showDesignPopup && (
+        <div className="popup-container absolute top-20 left-1/2 transform -translate-x-1/2 z-50 bg-black/90 backdrop-blur-sm border border-purple-500/30 rounded-lg p-4 shadow-2xl">
+          <div className="flex flex-col gap-2 min-w-[300px]">
+            <h3 className="text-purple-300 font-semibold mb-2 flex items-center">
+              <Settings className="w-4 h-4 mr-2" />
+              Design Tools
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={addSampleModule} className="btn-space">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Sample Modules
+              </Button>
+              <Button onClick={handleNASAValidation} disabled={loading.validation} className="btn-nasa">
+                {loading.validation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                NASA Validate
+              </Button>
+              <Button onClick={quickSave} disabled={isSaving} className="btn-space">
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Design'}
+              </Button>
+              <Button onClick={() => setActiveTab('collections')} className="btn-space">
+                <Folder className="w-4 h-4 mr-2" />
+                Collections
+              </Button>
+              <Button onClick={() => setShowCameraHelp(!showCameraHelp)} className="btn-space">
+                <Camera className="w-4 h-4 mr-2" />
+                {showCameraHelp ? 'Hide' : 'Show'} Camera Help
+              </Button>
+              <Button onClick={() => setShowImportExportPopup(!showImportExportPopup)} className="btn-space">
+                <Download className="w-4 h-4 mr-2" />
+                Import/Export
+              </Button>
+            </div>
+            
+            {/* Import/Export Sub-Popup */}
+            {showImportExportPopup && (
+              <div className="mt-3 p-3 bg-purple-900/20 rounded border border-purple-500/20">
+                <h4 className="text-purple-200 text-sm font-medium mb-2">Import/Export Options</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={exportNASAJSON} className="btn-space text-sm">
+                    <Download className="w-3 h-3 mr-1" />
+                    Export NASA JSON
+                  </Button>
+                  <Button onClick={importFromCAD} className="btn-space text-sm">
+                    <Download className="w-3 h-3 mr-1" />
+                    Import from CAD
+                  </Button>
+                  <Button onClick={exportToCAD} className="btn-space text-sm">
+                    <Shapes className="w-3 h-3 mr-1" />
+                    Export to CAD
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              onClick={() => setShowDesignPopup(false)} 
+              className="btn-mars mt-2 text-sm"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* CAD Tools Popup */}
+      {showCADPopup && (
+        <div className="popup-container absolute top-20 right-10 z-50 bg-black/90 backdrop-blur-sm border border-blue-500/30 rounded-lg p-4 shadow-2xl">
+          <div className="flex flex-col gap-2 min-w-[250px]">
+            <h3 className="text-blue-300 font-semibold mb-2 flex items-center">
+              <Shapes className="w-4 h-4 mr-2" />
+              CAD Tools
+            </h3>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => setActiveTab('cad')} className="btn-space">
+                <Settings className="w-4 h-4 mr-2" />
+                CAD Laboratory
+              </Button>
+              <Button onClick={() => setActiveTab('shapes')} className="btn-space">
+                <Shapes className="w-4 h-4 mr-2" />
+                Shape Builder
+              </Button>
+              <div className="h-px bg-blue-500/20 my-2"></div>
+              <Button onClick={importFromCAD} className="btn-space">
+                <Download className="w-4 h-4 mr-2" />
+                Import CAD Design
+              </Button>
+              <Button onClick={exportToCAD} className="btn-space">
+                <Shapes className="w-4 h-4 mr-2" />
+                Export Current Layout
+              </Button>
+            </div>
+            <Button 
+              onClick={() => setShowCADPopup(false)} 
+              className="btn-mars mt-2 text-sm"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex">
         {activeTab === 'design' ? (
@@ -955,7 +1620,7 @@ export default function NASAHabitatBuilder3D() {
                 <Input
                   type="number"
                   value={scenario.crew_size}
-                  onChange={(e) => setScenario(prev => ({
+                  onChange={(e) => setScenario((prev: Scenario) => ({
                     ...prev,
                     crew_size: parseInt(e.target.value) || 0
                   }))}
@@ -966,7 +1631,7 @@ export default function NASAHabitatBuilder3D() {
                 <Label className="text-gray-300 text-sm text-shadow-sm">Destination</Label>
                 <select
                   value={scenario.destination}
-                  onChange={(e) => setScenario(prev => ({
+                  onChange={(e) => setScenario((prev: Scenario) => ({
                     ...prev,
                     destination: e.target.value as any
                   }))}
@@ -984,7 +1649,7 @@ export default function NASAHabitatBuilder3D() {
                 <Input
                   type="number"
                   value={scenario.mission_duration_days}
-                  onChange={(e) => setScenario(prev => ({
+                  onChange={(e) => setScenario((prev: Scenario) => ({
                     ...prev,
                     mission_duration_days: parseInt(e.target.value) || 0
                   }))}
@@ -998,7 +1663,7 @@ export default function NASAHabitatBuilder3D() {
                   onChange={(e) => {
                     const fairing = FAIRINGS.find(f => f.name === e.target.value);
                     if (fairing) {
-                      setScenario(prev => ({ ...prev, fairing }));
+                      setScenario((prev: Scenario) => ({ ...prev, fairing }));
                     }
                   }}
                   className="w-full bg-gray-800/60 border border-gray-600/50 text-white text-sm rounded-md px-3 py-2 backdrop-blur-sm hover:bg-gray-800/80 transition-colors focus:ring-2 focus:ring-purple-500/50"
@@ -1046,6 +1711,41 @@ export default function NASAHabitatBuilder3D() {
               })}
             </div>
           </div>
+
+          {/* CAD Custom Designs */}
+          {cadDesigns.length > 0 && (
+            <div className="p-4 border-b border-purple-500/20">
+              <h3 className="font-semibold text-purple-300 mb-3 flex items-center gap-2 text-shadow">
+                <Settings className="w-4 h-4" />
+                Custom CAD Modules
+              </h3>
+              <div className="grid gap-2">
+                {cadDesigns.map((cadDesign) => (
+                  <div
+                    key={cadDesign.id}
+                    className="group flex items-center gap-3 p-3 bg-gradient-to-r from-purple-800/40 to-purple-700/40 hover:from-purple-700/50 hover:to-purple-600/50 border border-purple-500/50 hover:border-purple-400/70 rounded-xl cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-purple"
+                    onClick={() => createModuleFromCAD(cadDesign)}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-base shadow-lg"
+                      style={{ backgroundColor: '#8b5cf6' }}
+                    >
+                      🏗️
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-100 text-sm text-shadow-sm">{cadDesign.name}</div>
+                      <div className="text-xs text-gray-400">
+                        {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
+                      </div>
+                      <div className="text-xs text-purple-300">
+                        {cadDesign.shapes.length} components
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Selected Module Inspector */}
           {selectedObject && (
@@ -1116,6 +1816,9 @@ export default function NASAHabitatBuilder3D() {
             isInitialized={isInitialized}
             setIsInitialized={setIsInitialized}
             sceneRefs={sceneRefs}
+            onContextMenu={(x, y, objectId) => {
+              setContextMenu({ visible: true, x, y, objectId });
+            }}
           />
 
           {/* NASA Mission Info Overlay */}
@@ -1134,15 +1837,69 @@ export default function NASAHabitatBuilder3D() {
             </div>
           </div>
 
-          {selectedId && (
-            <div className="absolute top-6 left-6 glass-morphism rounded-xl p-4 shadow-2xl border border-yellow-500/40 glow-orange">
-              <div className="flex items-center gap-2 text-yellow-300 font-medium mb-2 text-shadow">
-                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse shadow-lg"></div>
-                NASA Module Selected
+          {/* Camera Controls Help */}
+          {showCameraHelp && (
+            <div className="absolute bottom-6 right-6 glass-morphism rounded-xl p-3 shadow-2xl border border-purple-500/30 glow-purple max-w-[220px]">
+              <div className="text-xs space-y-2">
+                <div className="font-medium text-purple-300 flex items-center justify-between text-shadow">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-3 h-3" />
+                    Controls
+                  </div>
+                  <button 
+                    onClick={() => setShowCameraHelp(false)}
+                    className="text-gray-400 hover:text-white transition-colors text-xs"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="text-gray-300 text-shadow-sm space-y-1">
+                  <div className="text-[10px] font-medium text-purple-200">Camera:</div>
+                  <div className="text-[10px]">• <kbd className="bg-gray-800/50 px-1 rounded text-[9px]">Space</kbd> + Drag: Pan</div>
+                  <div className="text-[10px]">• Mouse wheel: Zoom</div>
+                </div>
+                
+                <div className="text-gray-300 text-shadow-sm space-y-1">
+                  <div className="text-[10px] font-medium text-yellow-200">Objects (when selected):</div>
+                  <div className="text-[10px]">• Arrow keys: Move X/Z • W/S: Height</div>
+                  <div className="text-[10px]">• Q/E: Rotate • R/F/T/G: Pitch/Roll</div>
+                  <div className="text-[10px]">• Hold Shift: Faster movement</div>
+                </div>
               </div>
-              <div className="text-xs text-gray-300 space-y-1 text-shadow-sm">
-                <div><kbd className="bg-gray-700/80 px-2 py-1 rounded text-xs border border-gray-600">Click & Drag</kbd> Reposition</div>
-                <div><kbd className="bg-gray-700/80 px-2 py-1 rounded text-xs border border-gray-600">Right Click</kbd> Pan View</div>
+            </div>
+          )}
+
+          {selectedId && (
+            <div className="absolute top-6 left-6 glass-morphism rounded-xl p-3 shadow-2xl border border-yellow-500/40 glow-orange max-w-[280px]">
+              <div className="flex items-center gap-2 text-yellow-300 font-medium mb-2 text-shadow text-xs">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse shadow-lg"></div>
+                Module Selected - Keyboard Controls
+              </div>
+              <div className="text-[10px] text-gray-300 space-y-1 text-shadow-sm">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">←→</kbd> Move X</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">↑↓</kbd> Move Z</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">W/S</kbd> Height</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Q/E</kbd> Rotate Y</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">R/F</kbd> Pitch</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">T/G</kbd> Roll</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Ctrl+±</kbd> Scale</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Shift</kbd> Fast</div>
+                </div>
+                <div className="text-[9px] text-gray-400 mt-2 border-t border-gray-600/50 pt-1">
+                  Ctrl+X: Reset rotation • Ctrl+C: Reset scale
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Keyboard Action Feedback */}
+          {keyboardAction && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-black/80 backdrop-blur-sm border border-green-500/50 rounded-lg px-4 py-2 shadow-2xl animate-pulse">
+              <div className="flex items-center gap-2 text-green-300 font-medium text-sm">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                {keyboardAction}
               </div>
             </div>
           )}
@@ -1157,7 +1914,18 @@ export default function NASAHabitatBuilder3D() {
         ) : activeTab === 'shapes' ? (
           <ShapeBuilder />
         ) : activeTab === 'cad' ? (
-          <CADShapeBuilder onBackToDesign={() => setActiveTab('design')} />
+          <CADShapeBuilder 
+            onBackToDesign={() => setActiveTab('design')} 
+            onSaveDesign={(design) => {
+              setCadDesigns(prev => [...prev, {
+                id: Date.now().toString(),
+                name: design.name,
+                shapes: design.shapes,
+                bounds: design.bounds
+              }]);
+              alert(`CAD design "${design.name}" is now available as a custom module!`);
+            }}
+          />
         ) : (
           <ShapeBuilder />
         )}
@@ -1220,6 +1988,73 @@ export default function NASAHabitatBuilder3D() {
               </Card>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          className="fixed bg-gray-900 border border-gray-600 rounded-lg shadow-xl z-50 py-2 min-w-[160px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            transform: 'translate(-50%, 0)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.objectId ? (
+            <>
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                onClick={() => resizeObject(contextMenu.objectId!, 1.2)}
+              >
+                🔍 Zoom In (120%)
+              </button>
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                onClick={() => resizeObject(contextMenu.objectId!, 0.8)}
+              >
+                🔎 Zoom Out (80%)
+              </button>
+              <hr className="border-gray-700 my-1" />
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                onClick={() => duplicateObject(contextMenu.objectId!)}
+              >
+                📋 Duplicate
+              </button>
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                onClick={() => copyObject(contextMenu.objectId!)}
+              >
+                📄 Copy
+              </button>
+              {clipboard && (
+                <button
+                  className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                  onClick={() => pasteObject()}
+                >
+                  📁 Paste
+                </button>
+              )}
+              <hr className="border-gray-700 my-1" />
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-red-800 text-sm text-red-300 flex items-center gap-2"
+                onClick={() => deleteObject(contextMenu.objectId!)}
+              >
+                🗑️ Delete
+              </button>
+            </>
+          ) : (
+            clipboard && (
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-800 text-sm text-gray-200 flex items-center gap-2"
+                onClick={() => pasteObject()}
+              >
+                📁 Paste
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

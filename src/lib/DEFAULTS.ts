@@ -44,7 +44,8 @@ export const FUNCTIONAL_DEFAULTS: Record<FunctionalType, FunctionalHint> = {
   AIRLOCK:     { area_m2: 3.50, volume_m3: 9.00, multiplyByCrew: false, notes: "Two-person ingress/egress shell (surface ops vary)." },
   GLOVEBOX:    { area_m2: 1.20, volume_m3: 2.50, multiplyByCrew: false, notes: "Bench + operator stance." },
   TRASH_MGMT:  { area_m2: 1.50, volume_m3: 3.00, multiplyByCrew: false, notes: "Compactor/stow + access." },
-  COMMON_AREA: { area_m2: 2.10, volume_m3: 5.04, multiplyByCrew: false, notes: "Group viewing/table exemplar; scale for crew." }
+  COMMON_AREA: { area_m2: 2.10, volume_m3: 5.04, multiplyByCrew: false, notes: "Group viewing/table exemplar; scale for crew." },
+  CUSTOM_CAD:  { area_m2: 4.00, volume_m3: 8.00, multiplyByCrew: false, notes: "Custom CAD-designed module with variable functionality." }
 };
 
 /** Helper: compute target area for a functional block given crew size */
@@ -103,7 +104,8 @@ export const MODULE_PRESETS: ModulePreset[] = [
   { type: "AIRLOCK",    label: "Airlock",          defaultSize: { w_m: 2.0, l_m: 2.2, h_m: 2.3 }, icon: "door" },
   { type: "GLOVEBOX",   label: "Glovebox",         defaultSize: { w_m: 1.4, l_m: 1.8, h_m: 2.0 }, icon: "flask" },
   { type: "TRASH_MGMT", label: "Trash Mgmt",       defaultSize: { w_m: 1.5, l_m: 2.0, h_m: 2.0 }, icon: "recycle" },
-  { type: "COMMON_AREA",label: "Common Area",     defaultSize: { w_m: 3.0, l_m: 3.0, h_m: 2.2 }, icon: "users" }
+  { type: "COMMON_AREA",label: "Common Area",     defaultSize: { w_m: 3.0, l_m: 3.0, h_m: 2.2 }, icon: "users" },
+  { type: "CUSTOM_CAD", label: "Custom CAD Module", defaultSize: { w_m: 2.0, l_m: 2.0, h_m: 2.0 }, icon: "settings" }
 ];
 
 /** ---- Utility: quick color status for a module vs. target area ---- */
