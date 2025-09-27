@@ -28,6 +28,7 @@
     "lucide-react": "^0.544.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recharts": "^3.2.1",
     "tailwind-merge": "^3.3.1",
     "three": "^0.180.0",
     "zod": "^3.23.8"
