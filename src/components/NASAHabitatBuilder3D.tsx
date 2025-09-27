@@ -240,6 +240,74 @@ interface HabitatObject {
   };
 }
 
+// Create starfield background for space environment
+function createStarField(scene: THREE.Scene, seed: number = 42, starCount: number = 8000, far: number = 800) {
+  const positions = new Float32Array(starCount * 3);
+  const colors = new Float32Array(starCount * 3);
+  
+  // Seeded random function for consistent star patterns
+  const seedRandom = (seed: number) => {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+  };
+  
+  let seedValue = seed;
+  
+  for (let i = 0; i < starCount; i++) {
+    // Spherical distribution for natural star field
+    const radius = far * 0.8 + (seedRandom(seedValue++) * far * 0.2);
+    const theta = seedRandom(seedValue++) * Math.PI * 2;
+    const phi = Math.acos(2 * seedRandom(seedValue++) - 1);
+    
+    positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+    positions[i * 3 + 2] = radius * Math.cos(phi);
+    
+    // Vary star brightness and color temperature
+    const brightness = 0.3 + seedRandom(seedValue++) * 0.7;
+    const temp = seedRandom(seedValue++);
+    
+    if (temp > 0.8) {
+      // Blue-white stars
+      colors[i * 3] = brightness * 0.8;
+      colors[i * 3 + 1] = brightness * 0.9;
+      colors[i * 3 + 2] = brightness;
+    } else if (temp > 0.6) {
+      // White stars
+      colors[i * 3] = brightness;
+      colors[i * 3 + 1] = brightness;
+      colors[i * 3 + 2] = brightness;
+    } else if (temp > 0.3) {
+      // Yellow stars
+      colors[i * 3] = brightness;
+      colors[i * 3 + 1] = brightness * 0.9;
+      colors[i * 3 + 2] = brightness * 0.7;
+    } else {
+      // Red stars
+      colors[i * 3] = brightness;
+      colors[i * 3 + 1] = brightness * 0.6;
+      colors[i * 3 + 2] = brightness * 0.4;
+    }
+  }
+  
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  
+  const material = new THREE.PointsMaterial({
+    size: 2,
+    sizeAttenuation: false,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8
+  });
+  
+  const starField = new THREE.Points(geometry, material);
+  scene.add(starField);
+  
+  return starField;
+}
+
 // 3D Scene Component
 function ThreeScene({ 
   objects, 
@@ -373,10 +441,13 @@ function ThreeScene({
       // Get environment configuration based on destination
       const envConfig = getEnvironmentConfig(scenario.destination);
       
-      // Scene setup with dynamic background
+      // Scene setup with star field background
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(envConfig.background);
+      scene.background = new THREE.Color(0x000011); // Very dark blue-black space color
       sceneRef.current = scene;
+      
+      // Add star field instead of solid background
+      const starField = createStarField(scene, 42, 6000, 600);
 
       // Camera setup
       const camera = new THREE.PerspectiveCamera(
@@ -675,6 +746,13 @@ function ThreeScene({
       // Animation loop
       function animate() {
         animationIdRef.current = requestAnimationFrame(animate);
+        
+        // Add subtle star twinkling animation
+        if (starField) {
+          const material = starField.material as THREE.PointsMaterial;
+          material.opacity = 0.6 + 0.2 * Math.sin(Date.now() * 0.001);
+        }
+        
         renderer.render(scene, camera);
       }
       animate();
