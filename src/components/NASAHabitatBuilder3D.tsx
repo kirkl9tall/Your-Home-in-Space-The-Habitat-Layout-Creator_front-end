@@ -769,7 +769,7 @@ function ThreeScene({
   }, [objects, selectedId, isInitialized]);
 
   return (
-    <div ref={mountRef} className="w-full h-full bg-purple-900">
+    <div ref={mountRef} className="w-full h-full bg-background">
       {!isInitialized && (
         <div className="flex items-center justify-center h-full">
           <div className="text-white text-center">
@@ -1574,20 +1574,20 @@ export default function NASAHabitatBuilder3D() {
   const selectedObject = objects.find(obj => obj.id === selectedId);
 
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex flex-col">
+    <div className="w-full h-screen bg-background text-foreground space-gradient flex flex-col">
       {/* Header */}
-      <header className="glass-morphism shadow-2xl border-b border-purple-500/20">
+      <header className="nav-container shadow-2xl">
         <div className="flex items-center justify-between p-4">
           {/* Logo and Title */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg glow-purple">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
               <Camera className="w-6 h-6 text-white drop-shadow-lg" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-blue-300 to-purple-300 bg-clip-text text-transparent text-shadow">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
                 NASA Habitat Designer
               </h1>
-              <p className="text-xs text-gray-400 text-shadow-sm">Professional space habitat layout tool</p>
+              <p className="text-xs text-muted-foreground">Professional space habitat layout tool</p>
             </div>
           </div>
           
@@ -1633,8 +1633,8 @@ export default function NASAHabitatBuilder3D() {
               onClick={() => setActiveTab('analyses')} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 activeTab === 'analyses' 
-                  ? 'bg-purple-600/80 text-white border-purple-400/50 shadow-lg glow-purple' 
-                  : 'bg-gray-800/40 text-gray-300 border-gray-600/30 hover:bg-purple-600/40 hover:text-white hover:border-purple-500/40'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-lg' 
+                  : 'bg-card/40 text-muted-foreground border-border hover:bg-primary/40 hover:text-foreground hover:border-primary/40'
               } border backdrop-blur-sm`}
             >
               <Lightbulb className="w-4 h-4" />
@@ -1660,10 +1660,10 @@ export default function NASAHabitatBuilder3D() {
         {activeTab === 'design' ? (
           <>
             {/* NASA Mission Control Sidebar */}
-            <aside className="w-80 glass-morphism shadow-2xl border-r border-purple-500/20 flex flex-col overflow-y-auto">
+            <aside className="w-80 nav-container shadow-2xl border-r border-border flex flex-col overflow-y-auto">
               {/* Mission Scenario */}
           {/* Mission Scenario - Compact but Editable */}
-          <div className="p-3 border-b border-purple-500/20 bg-gradient-to-br from-blue-900/20 to-purple-900/20">
+          <div className="p-3 border-b border-border bg-card/20">
             <h3 className="font-semibold text-blue-300 mb-2 flex items-center gap-2 text-shadow">
               <Settings className="w-4 h-4" />
               NASA Mission Scenario
@@ -1735,74 +1735,78 @@ export default function NASAHabitatBuilder3D() {
           </div>
 
           {/* NASA Functional Areas - Limited with Scroll */}
-          <div className="p-3 border-b border-purple-500/20">
-            <h3 className="font-semibold text-purple-300 mb-2 flex items-center gap-2 text-shadow">
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
               <Plus className="w-4 h-4" />
               NASA Functional Areas
             </h3>
-            <div className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent">
-              {Object.entries(MODULE_TYPES_3D).map(([type, config]) => {
-                const preset = MODULE_PRESETS.find(p => p.type === type as FunctionalType);
-                return (
-                  <div
-                    key={type}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("module", type)}
-                    className="group flex items-center gap-2 p-2 bg-gradient-to-r from-gray-800/40 to-gray-700/40 hover:from-purple-800/30 hover:to-purple-700/30 border border-gray-600/50 hover:border-purple-400/60 rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-purple"
-                  >
-                    <div 
-                      className="w-6 h-6 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0"
-                      style={{ backgroundColor: config.color }}
+            <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(MODULE_TYPES_3D).map(([type, config]) => {
+                  const preset = MODULE_PRESETS.find(p => p.type === type as FunctionalType);
+                  return (
+                    <div
+                      key={type}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("module", type)}
+                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-primary/20 border border-border hover:border-primary/60 rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
                     >
-                      {config.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-100 text-xs text-shadow-sm truncate">{preset?.label || type}</div>
-                      <div className="text-[10px] text-gray-400">
-                        {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
+                      <div 
+                        className="w-8 h-8 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0"
+                        style={{ backgroundColor: config.color }}
+                      >
+                        {config.icon}
+                      </div>
+                      <div className="text-center min-w-0 w-full">
+                        <div className="font-medium text-foreground text-xs truncate">{preset?.label || type}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-            <div className="text-xs text-gray-400 text-center mt-1">
+            <div className="text-xs text-muted-foreground text-center mt-2">
               Scroll to see all {Object.keys(MODULE_TYPES_3D).length} functional areas
             </div>
           </div>
 
           {/* Custom CAD Modules - Scrollable */}
           {cadDesigns.length > 0 && (
-            <div className="p-3 border-b border-purple-500/20">
-              <h3 className="font-semibold text-orange-300 mb-2 flex items-center gap-2 text-shadow">
+            <div className="p-3 border-b border-border">
+              <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 Custom CAD Modules
               </h3>
-              <div className="max-h-32 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-orange-500/50 scrollbar-track-transparent">
-                {cadDesigns.map((cadDesign) => (
-                  <div
-                    key={cadDesign.id}
-                    className="group flex items-center gap-2 p-2 bg-gradient-to-r from-orange-800/40 to-orange-700/40 hover:from-orange-700/50 hover:to-orange-600/50 border border-orange-500/50 hover:border-orange-400/70 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:glow-orange"
-                    onClick={() => createModuleFromCAD(cadDesign)}
-                  >
-                    <div className="w-6 h-6 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
-                      <Settings className="w-3 h-3" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-orange-100 text-xs text-shadow-sm truncate">{cadDesign.name}</div>
-                      <div className="text-[10px] text-orange-300">
-                        {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
+              <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                <div className="grid grid-cols-3 gap-2">
+                  {cadDesigns.map((cadDesign) => (
+                    <div
+                      key={cadDesign.id}
+                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-orange-500/20 border border-border hover:border-orange-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
+                      onClick={() => createModuleFromCAD(cadDesign)}
+                    >
+                      <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
+                        <Settings className="w-4 h-4" />
+                      </div>
+                      <div className="text-center min-w-0 w-full">
+                        <div className="font-medium text-foreground text-xs truncate">{cadDesign.name}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
           {/* Quick Actions & Custom Shapes */}
-          <div className="p-3 border-b border-purple-500/20">
-            <h3 className="font-semibold text-green-300 mb-2 flex items-center gap-2 text-shadow">
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
               <Plus className="w-4 h-4" />
               Quick Actions
             </h3>

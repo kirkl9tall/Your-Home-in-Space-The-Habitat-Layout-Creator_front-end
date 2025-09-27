@@ -13,18 +13,18 @@ export function Layout() {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900">
+    <div className="min-h-screen bg-background text-foreground space-gradient">
       {/* Navigation */}
-      <nav className="bg-black/40 backdrop-blur-md border-b border-purple-500/20 shadow-lg">
+      <nav className="nav-container shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/design" className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center">
                   <Rocket className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
                     NASA Habitat Designer
                   </h1>
                 </div>
@@ -45,8 +45,8 @@ export function Layout() {
                       className={cn(
                         'inline-flex items-center gap-2 px-1 pt-1 text-sm font-medium transition-colors',
                         isActive
-                          ? 'text-purple-300 border-b-2 border-purple-400'
-                          : 'text-gray-300 hover:text-purple-200 hover:border-gray-300'
+                          ? 'text-primary border-b-2 border-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:border-border'
                       )}
                     >
                       <Icon className="w-4 h-4" />
@@ -62,7 +62,7 @@ export function Layout() {
       </nav>
 
       {/* Main content */}
-      <main className="flex-1">
+      <main className="flex-1 bg-background">
         <Outlet />
       </main>
     </div>

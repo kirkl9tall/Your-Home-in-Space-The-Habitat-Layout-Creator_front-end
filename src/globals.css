@@ -4,26 +4,50 @@
 
 @layer base {
   :root {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
+    /* Light theme */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 200 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 95%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 95%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 95%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 200 100% 50%;
     --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark theme */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 200 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 8%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+    --input: 0 0% 8%;
+    --ring: 200 100% 50%;
   }
 }
 
@@ -36,9 +60,25 @@
   }
 }
 
+/* Light mode styles */
+:root {
+  --nav-bg: rgba(255, 255, 255, 0.95);
+  --nav-border: rgba(0, 0, 0, 0.1);
+  --gradient-from: #f8fafc;
+  --gradient-to: #e2e8f0;
+}
+
+/* Dark mode styles */
+.dark {
+  --nav-bg: rgba(0, 0, 0, 0.95);
+  --nav-border: rgba(255, 255, 255, 0.1);
+  --gradient-from: #000000;
+  --gradient-to: #1a1a1a;
+}
+
 /* Custom space-themed styles */
 .space-gradient {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+  background: linear-gradient(135deg, var(--gradient-from) 0%, var(--gradient-to) 100%);
 }
 
 .mars-gradient {
@@ -47,18 +87,31 @@
 
 .habitat-grid {
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    linear-gradient(rgba(156, 163, 175, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(156, 163, 175, 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+.dark .habitat-grid {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 }
 
 .module-selected {
   @apply ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
 
-.status-green { @apply bg-green-500/20 border-green-500/50 text-green-300; }
-.status-amber { @apply bg-amber-500/20 border-amber-500/50 text-amber-300; }
-.status-red { @apply bg-red-500/20 border-red-500/50 text-red-300; }
+.status-green { @apply bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400; }
+.status-amber { @apply bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400; }
+.status-red { @apply bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400; }
+
+/* Navigation styles */
+.nav-container {
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--nav-border);
+}
 
 /* Animations for space feel */
 .orbit {
@@ -68,4 +121,31 @@
 @keyframes orbit {
   from { transform: rotate(0deg) translateX(100px) rotate(0deg); }
   to { transform: rotate(360deg) translateX(100px) rotate(-360deg); }
+}
+
+/* Button hover effects */
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground;
 }

@@ -27,13 +27,13 @@ const analysisRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/analysis',
   component: () => (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center h-full bg-background text-foreground">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-purple-200 mb-4">NASA Mission Analysis</h2>
-        <p className="text-gray-300 mb-6">Advanced habitat layout analysis and optimization tools</p>
-        <div className="bg-purple-800/20 border border-purple-500/30 rounded-lg p-6">
-          <p className="text-purple-200">Coming Soon: Mission analysis features including:</p>
-          <ul className="text-left text-gray-300 mt-4 space-y-1">
+        <h2 className="text-2xl font-bold text-foreground mb-4">NASA Mission Analysis</h2>
+        <p className="text-muted-foreground mb-6">Advanced habitat layout analysis and optimization tools</p>
+        <div className="bg-card border border-border rounded-lg p-6">
+          <p className="text-card-foreground">Coming Soon: Mission analysis features including:</p>
+          <ul className="text-left text-muted-foreground mt-4 space-y-1">
             <li>• Volume utilization efficiency</li>
             <li>• Crew workflow optimization</li>
             <li>• Emergency egress path analysis</li>
@@ -51,13 +51,13 @@ const collectionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/collections',
   component: () => (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center h-full bg-background text-foreground">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-purple-200 mb-4">Habitat Collections</h2>
-        <p className="text-gray-300 mb-6">Manage saved habitat layouts and NASA mission templates</p>
-        <div className="bg-purple-800/20 border border-purple-500/30 rounded-lg p-6">
-          <p className="text-purple-200">Coming Soon: Collection features including:</p>
-          <ul className="text-left text-gray-300 mt-4 space-y-1">
+        <h2 className="text-2xl font-bold text-foreground mb-4">Habitat Collections</h2>
+        <p className="text-muted-foreground mb-6">Manage saved habitat layouts and NASA mission templates</p>
+        <div className="bg-card border border-border rounded-lg p-6">
+          <p className="text-card-foreground">Coming Soon: Collection features including:</p>
+          <ul className="text-left text-muted-foreground mt-4 space-y-1">
             <li>• Save and load habitat designs</li>
             <li>• NASA mission template library</li>
             <li>• Version history and comparison</li>
