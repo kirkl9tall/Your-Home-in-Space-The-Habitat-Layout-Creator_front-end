@@ -894,6 +894,15 @@ export default function NASAHabitatBuilder3D() {
     initDatabase().catch(console.error);
   }, []);
 
+  // Trigger canvas resize when sidebar toggles
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100); // Small delay to ensure DOM has updated
+    
+    return () => clearTimeout(timer);
+  }, [showSidebar]);
+
   // Persistence effects - save state to localStorage when it changes
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.OBJECTS, objects);
@@ -1681,22 +1690,29 @@ export default function NASAHabitatBuilder3D() {
 
       <div className="flex-1 flex">
         {activeTab === 'design' ? (
-          <>
+          <div className="flex flex-1 relative">
             {/* NASA Mission Control Sidebar */}
             {showSidebar && (
             <aside className="w-80 nav-container shadow-2xl border-r border-border flex flex-col overflow-y-auto">
-              {/* Sidebar Header with Toggle */}
+              {/* Sidebar Header with Toggle Button */}
               <div className="p-3 border-b border-border bg-card/20">
-                <Button 
-                  onClick={() => setShowSidebar(!showSidebar)} 
-                  className="w-full p-2 h-10 justify-start hover:bg-destructive/10 border-0 hover:border-destructive/30"
-                  title="Hide Sidebar"
-                  variant="ghost"
-                  size="sm"
-                >
-                  <PanelLeftClose className="w-5 h-5 mr-2" />
-                  <span className="font-semibold text-foreground">Mission Control</span>
-                </Button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-primary to-blue-600 rounded-md flex items-center justify-center">
+                      <Settings className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="font-semibold text-foreground">Mission Control</span>
+                  </div>
+                  <Button
+                    onClick={() => setShowSidebar(false)}
+                    className="w-8 h-8 p-0 rounded-lg hover:bg-accent"
+                    title="Hide Sidebar"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <PanelLeftClose className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               
               {/* Mission Scenario */}
@@ -1976,24 +1992,16 @@ export default function NASAHabitatBuilder3D() {
         </aside>
         )}
 
-        {/* Floating Sidebar Toggle Button (when hidden) - Exact same position */}
+        {/* Show Sidebar Button - when hidden */}
         {!showSidebar && (
-          <div className="absolute top-0 left-0 z-50">
-            <div className="w-80 nav-container shadow-2xl border-r border-border">
-              <div className="p-3 border-b border-border bg-card/20">
-                <Button 
-                  onClick={() => setShowSidebar(true)} 
-                  className="w-full p-2 h-10 justify-start hover:bg-primary/10 border-0 hover:border-primary/30"
-                  title="Show Sidebar"
-                  variant="ghost"
-                  size="sm"
-                >
-                  <PanelLeft className="w-5 h-5 mr-2" />
-                  <span className="font-semibold text-foreground">Mission Control</span>
-                </Button>
-              </div>
-            </div>
-          </div>
+          <Button
+            onClick={() => setShowSidebar(true)}
+            className="absolute top-4 left-4 z-50 w-8 h-8 p-0 rounded-lg bg-card border border-border hover:bg-accent shadow-lg"
+            title="Show Sidebar"
+            variant="ghost"
+          >
+            <PanelLeft className="w-4 h-4" />
+          </Button>
         )}
 
         {/* 3D Canvas */}
@@ -2100,7 +2108,7 @@ export default function NASAHabitatBuilder3D() {
             </div>
           )}
         </main>
-          </>
+          </div>
         ) : activeTab === 'collections' ? (
           <Collections
             currentLayout={generateNASALayout()}
