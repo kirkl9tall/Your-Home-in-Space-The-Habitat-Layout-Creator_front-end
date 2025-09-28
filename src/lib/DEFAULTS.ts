@@ -1,6 +1,9 @@
 // src/lib/DEFAULTS.ts
 import { FunctionalType } from "./schemas";
 
+// Re-export the type for use in other modules
+export type { FunctionalType } from "./schemas";
+
 /** ---- Fairing presets (inner envelope) ---- */
 export type FairingPreset = {
   name: string;

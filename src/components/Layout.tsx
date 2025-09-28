@@ -1,10 +1,11 @@
 import { Outlet, Link, useLocation } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
-import { Rocket, BarChart3, FolderOpen } from 'lucide-react'
+import { Rocket, BarChart3, FolderOpen, Settings } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 
 const navigation = [
   { name: 'Design', href: '/design', icon: Rocket },
+  { name: 'CAD Studio', href: '/cad', icon: Settings },
   { name: 'Analysis', href: '/analysis', icon: BarChart3 },
   { name: 'Collections', href: '/collections', icon: FolderOpen },
 ]
