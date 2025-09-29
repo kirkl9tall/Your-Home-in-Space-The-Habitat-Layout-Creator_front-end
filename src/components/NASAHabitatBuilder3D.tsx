@@ -1,14 +1,18 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { Loader2, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
 
 // Blender Model API Integration
 import { blenderModelService, BlenderModuleRequest } from '@/lib/blenderModelAPI';
+
+// Blender Laboratory Integration
+import BlenderLab from '@/features/blender/BlenderLab';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -146,8 +150,178 @@ function snap(n: number, step = 0.5) {
 }
 
 // Create realistic 3D geometries for different NASA modules
-function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }): THREE.BufferGeometry {
+function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }, blenderData?: any, cadData?: any): THREE.BufferGeometry | THREE.Group {
   const { w_m, h_m, l_m } = size;
+  
+  // Handle CAD modules with GLTF data
+  if (cadData?.isGLTF && cadData.gltfData?.scene) {
+    const group = new THREE.Group();
+    const gltfScene = cadData.gltfData.scene.clone();
+    
+    // Scale the GLTF object to fit the module size
+    const box = new THREE.Box3().setFromObject(gltfScene);
+    const currentSize = box.getSize(new THREE.Vector3());
+    const scale = Math.min(
+      w_m / currentSize.x,
+      h_m / currentSize.y,
+      l_m / currentSize.z
+    ) * 0.8; // Scale down a bit to fit nicely
+    
+    gltfScene.scale.setScalar(scale);
+    
+    // Center the object
+    const center = box.getCenter(new THREE.Vector3());
+    gltfScene.position.sub(center.multiplyScalar(scale));
+    
+    group.add(gltfScene);
+    return group;
+  }
+  
+  // Handle Blender modules with actual object data
+  if (geometryType === 'blender' && blenderData?.objects) {
+    const group = new THREE.Group();
+    
+    blenderData.objects.forEach((obj: any) => {
+      // Handle imported GLTF models within Blender objects
+      if (obj.type === 'model' && obj.modelUrl) {
+        // Load GLTF file asynchronously and add to group
+        const loader = new THREE.Group();
+        loader.userData = { isPlaceholder: true, modelUrl: obj.modelUrl };
+        
+        // Set placeholder position and scale
+        loader.position.set(
+          obj.position[0] * 0.2, 
+          obj.position[1] * 0.2, 
+          obj.position[2] * 0.2
+        );
+        loader.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2]);
+        loader.scale.set(
+          obj.scale[0] * 0.3, 
+          obj.scale[1] * 0.3, 
+          obj.scale[2] * 0.3
+        );
+        
+        group.add(loader);
+        
+        // Load the actual GLTF model
+        const loader_instance = new GLTFLoader();
+        loader_instance.load(
+          obj.modelUrl,
+          (gltf: any) => {
+            // Remove placeholder marker and add loaded scene
+            loader.userData.isPlaceholder = false;
+            loader.clear();
+            
+            // Clone the scene to avoid issues with multiple instances
+            const loadedScene = gltf.scene.clone();
+            loadedScene.traverse((child: any) => {
+              if (child instanceof THREE.Mesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+              }
+            });
+            
+            loader.add(loadedScene);
+          },
+          undefined,
+          (error: any) => {
+            console.error('Error loading GLTF in blender module:', error);
+            // Keep placeholder as fallback
+            const fallbackGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const fallbackMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
+            const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+            loader.add(fallbackMesh);
+          }
+        );
+        
+        return;
+      }
+      
+      // Handle regular primitive shapes
+      let objGeometry: THREE.BufferGeometry;
+      
+      switch (obj.type) {
+        case 'cube':
+          objGeometry = new THREE.BoxGeometry(
+            obj.scale[0] * 0.3, 
+            obj.scale[1] * 0.3, 
+            obj.scale[2] * 0.3
+          );
+          break;
+          
+        case 'sphere':
+          objGeometry = new THREE.SphereGeometry(
+            Math.max(...obj.scale) * 0.15, 
+            12, 
+            8
+          );
+          break;
+          
+        case 'cylinder':
+          objGeometry = new THREE.CylinderGeometry(
+            obj.scale[0] * 0.15, 
+            obj.scale[0] * 0.15, 
+            obj.scale[1] * 0.3, 
+            12
+          );
+          break;
+          
+        case 'cone':
+          objGeometry = new THREE.ConeGeometry(
+            obj.scale[0] * 0.15, 
+            obj.scale[1] * 0.3, 
+            12
+          );
+          break;
+          
+        case 'torus':
+          objGeometry = new THREE.TorusGeometry(
+            obj.scale[0] * 0.12, 
+            obj.scale[0] * 0.06, 
+            6, 
+            12
+          );
+          break;
+          
+        case 'plane':
+          objGeometry = new THREE.PlaneGeometry(
+            obj.scale[0] * 0.3, 
+            obj.scale[2] * 0.3
+          );
+          break;
+          
+        default:
+          objGeometry = new THREE.BoxGeometry(
+            obj.scale[0] * 0.3, 
+            obj.scale[1] * 0.3, 
+            obj.scale[2] * 0.3
+          );
+      }
+      
+      const objMaterial = new THREE.MeshLambertMaterial({ 
+        color: new THREE.Color(obj.color),
+        transparent: true,
+        opacity: 0.8
+      });
+      
+      const mesh = new THREE.Mesh(objGeometry, objMaterial);
+      
+      // Scale down positions to fit in habitat module bounds
+      mesh.position.set(
+        obj.position[0] * 0.2, 
+        obj.position[1] * 0.2, 
+        obj.position[2] * 0.2
+      );
+      mesh.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2]);
+      
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      
+      group.add(mesh);
+    });
+    
+    return group;
+  }
   
   switch (geometryType) {
     case 'sleep_pod':
@@ -249,51 +423,6 @@ function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Mat
 }
 
 // Enhanced module creation with Blender API integration
-async function createEnhancedModule(
-  moduleType: FunctionalType, 
-  size: { w_m: number; l_m: number; h_m: number },
-  useBlender: boolean = false
-): Promise<THREE.Object3D> {
-  const moduleConfig = MODULE_TYPES_3D[moduleType];
-  
-  if (useBlender && moduleConfig?.blenderEnabled) {
-    try {
-      console.log(`Creating Blender model for ${moduleType}...`);
-      
-      // Request model from Blender API
-      const blenderModel = await blenderModelService.generateAndLoadModule(
-        moduleType, 
-        { width: size.w_m, height: size.h_m, depth: size.l_m }
-      );
-      
-      // Apply materials to Blender model
-      blenderModel.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          const material = new THREE.MeshLambertMaterial({ 
-            color: moduleConfig.color,
-            transparent: true,
-            opacity: 0.8
-          });
-          child.material = material;
-        }
-      });
-      
-      return blenderModel;
-      
-    } catch (error) {
-      console.warn(`Failed to load Blender model for ${moduleType}, falling back to basic geometry:`, error);
-      // Fall through to basic geometry
-    }
-  }
-  
-  // Fallback to basic geometry
-  const geometry = createModuleGeometry(moduleConfig?.geometry || 'default', size);
-  const material = createModuleMaterial(moduleConfig, false);
-  const mesh = new THREE.Mesh(geometry, material);
-  
-  return mesh;
-}
-
 // NASA-compatible object structure
 interface HabitatObject {
   id: string;
@@ -305,6 +434,23 @@ interface HabitatObject {
     w_m: number;
     l_m: number;
     h_m: number;
+  };
+  blenderData?: {
+    name: string;
+    description?: string;
+    objects: any[];
+    objectCount: number;
+    createdAt: string;
+  };
+  cadData?: {
+    name: string;
+    isGLTF: boolean;
+    gltfData?: {
+      scene: THREE.Object3D;
+      animations: any[];
+      url: string;
+    };
+    shapes?: any[];
   };
 }
 
@@ -477,7 +623,7 @@ function ThreeScene({
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const meshesRef = useRef(new Map<string, THREE.Mesh>());
+  const meshesRef = useRef(new Map<string, THREE.Object3D>());
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
@@ -650,15 +796,31 @@ function ThreeScene({
           raycasterRef.current.setFromCamera(mouseRef.current, camera);
           
           const meshes = Array.from(meshesRef.current.values());
-          const intersects = raycasterRef.current.intersectObjects(meshes);
+          const intersects = raycasterRef.current.intersectObjects(meshes, true); // Add recursive flag
           
           if (intersects.length > 0) {
-            const clickedId = intersects[0].object.userData.id;
-            setSelectedId(clickedId);
-            isDraggingObjectRef.current = true;
-            const selectedMesh = intersects[0].object;
-            const intersectionPoint = intersects[0].point;
-            dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
+            // Find the object with userData.id (could be the intersected object or its parent)
+            let clickedObject = intersects[0].object;
+            let clickedId = clickedObject.userData.id;
+            
+            // If child mesh doesn't have id, walk up the hierarchy to find parent with id
+            while (!clickedId && clickedObject.parent) {
+              clickedObject = clickedObject.parent;
+              clickedId = clickedObject.userData.id;
+            }
+            
+            if (clickedId) {
+              setSelectedId(clickedId);
+              isDraggingObjectRef.current = true;
+              // Use the top-level object (with the id) for positioning
+              const selectedMesh = meshesRef.current.get(clickedId) || clickedObject;
+              const intersectionPoint = intersects[0].point;
+              dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
+            } else {
+              setSelectedId(null);
+              state.isRotating = true;
+              state.previousMouse = { x: event.clientX, y: event.clientY };
+            }
           } else {
             setSelectedId(null);
             state.isRotating = true;
@@ -879,13 +1041,30 @@ function ThreeScene({
     console.log('Updating objects in scene, count:', objects.length);
 
     // Remove existing meshes
-    meshesRef.current.forEach((mesh) => {
-      sceneRef.current!.remove(mesh);
-      mesh.geometry.dispose();
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(material => material.dispose());
-      } else {
-        mesh.material.dispose();
+    meshesRef.current.forEach((object3D) => {
+      sceneRef.current!.remove(object3D);
+      
+      // Handle disposal for both individual meshes and groups
+      if (object3D instanceof THREE.Mesh) {
+        // Single mesh - dispose geometry and materials
+        object3D.geometry.dispose();
+        if (Array.isArray(object3D.material)) {
+          object3D.material.forEach(material => material.dispose());
+        } else {
+          object3D.material.dispose();
+        }
+      } else if (object3D instanceof THREE.Group) {
+        // Group - dispose all child meshes
+        object3D.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach(material => material.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        });
       }
     });
     meshesRef.current.clear();
@@ -897,20 +1076,60 @@ function ThreeScene({
 
       const isSelected = selectedId === obj.id;
       
+      // Check if this is a Blender module with custom geometry
+      const geometryType = (obj as any).blenderData ? 'blender' : 
+                          (obj as any).cadData?.isGLTF ? 'gltf' : 
+                          moduleConfig.geometry;
+      const blenderData = (obj as any).blenderData;
+      const cadData = (obj as any).cadData;
+      
       // Create realistic geometry using our new system
-      const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
-      const material = createModuleMaterial(moduleConfig, isSelected);
+      const geometry = createModuleGeometry(geometryType, obj.size, blenderData, cadData);
+      
+      let object3D: THREE.Object3D;
+      
+      if (geometry instanceof THREE.Group) {
+        // Handle Blender modules that return a Group
+        object3D = geometry;
+        object3D.position.set(...obj.position);
+        object3D.rotation.set(...(obj.rotation || [0, 0, 0]));
+        object3D.scale.set(...(obj.scale || [1, 1, 1]));
+        object3D.userData = { id: obj.id, type: obj.type };
+        
+        // Ensure all child meshes also have the parent's userData for raycasting
+        object3D.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.userData = { id: obj.id, type: obj.type, isChildOfGroup: true };
+          }
+        });
+        
+        // Apply material color to all meshes in the group if selected
+        if (isSelected) {
+          object3D.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach(mat => mat.color.setHex(0xffff00));
+              } else {
+                child.material.color.setHex(0xffff00);
+              }
+            }
+          });
+        }
+      } else {
+        // Handle regular geometries that return BufferGeometry
+        const material = createModuleMaterial(moduleConfig, isSelected);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(...obj.position);
+        mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
+        mesh.scale.set(...(obj.scale || [1, 1, 1]));
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData = { id: obj.id, type: obj.type };
+        object3D = mesh;
+      }
 
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(...obj.position);
-      mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
-      mesh.scale.set(...(obj.scale || [1, 1, 1]));
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData = { id: obj.id, type: obj.type };
-
-      sceneRef.current!.add(mesh);
-      meshesRef.current.set(obj.id, mesh);
+      sceneRef.current!.add(object3D);
+      meshesRef.current.set(obj.id, object3D);
     });
   }, [objects, selectedId, isInitialized]);
 
@@ -1006,7 +1225,7 @@ export default function NASAHabitatBuilder3D() {
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'blender'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -1042,10 +1261,39 @@ export default function NASAHabitatBuilder3D() {
   const [cadDesigns, setCadDesigns] = useState<Array<{
     id: string;
     name: string;
-    shapes: any[];
+    shapes?: any[];
     bounds: { width: number; height: number; depth: number };
     thumbnail?: string;
+    isGLTF?: boolean;
+    gltfData?: {
+      scene: THREE.Object3D;
+      animations: any[];
+      url: string;
+    };
   }>>(() => loadFromStorage(STORAGE_KEYS.CAD_DESIGNS, []));
+  
+  // Blender Lab modules - Store custom modules created in Blender Lab
+  const [blenderModules, setBlenderModules] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    type: string;
+    objects: any[];
+    createdAt: string;
+    objectCount: number;
+    bounds: { width: number; height: number; depth: number };
+  }>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('blenderModules') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  
+  // Save blender modules to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('blenderModules', JSON.stringify(blenderModules));
+  }, [blenderModules]);
   
   const hoverPointRef = useRef<THREE.Vector3 | null>(null);
 
@@ -1575,6 +1823,12 @@ export default function NASAHabitatBuilder3D() {
     setLoading(prev => ({ ...prev, validation: false }));
   };
 
+  // Handle saving modules from Blender Lab
+  const handleSaveBlenderModule = useCallback((moduleData: any) => {
+    setBlenderModules(prev => [...prev, moduleData]);
+    console.log('Saved Blender module:', moduleData);
+  }, []);
+
   // Export NASA JSON
   const exportNASAJSON = () => {
     const data = generateNASALayout();
@@ -1724,6 +1978,70 @@ export default function NASAHabitatBuilder3D() {
     alert('CAD designs imported! Check the module library for custom modules.');
   }, []);
 
+  // GLTF Import functionality
+  const importGLTFFile = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.gltf,.glb';
+    input.multiple = false;
+    
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      try {
+        const loader = new GLTFLoader();
+        const url = URL.createObjectURL(file);
+        
+        // Load the GLTF file
+        loader.load(
+          url,
+          (gltf) => {
+            // Successfully loaded GLTF
+            const scene = gltf.scene;
+            
+            // Calculate bounding box
+            const box = new THREE.Box3().setFromObject(scene);
+            const size = box.getSize(new THREE.Vector3());
+            
+            // Create a CAD design entry from the GLTF
+            const gltfDesign = {
+              id: `gltf-${Date.now()}`,
+              name: file.name.replace(/\.(gltf|glb)$/i, ''),
+              gltfData: {
+                scene: scene.clone(),
+                animations: gltf.animations,
+                url: url
+              },
+              bounds: {
+                width: Math.max(0.5, size.x),
+                height: Math.max(0.5, size.y), 
+                depth: Math.max(0.5, size.z)
+              },
+              isGLTF: true
+            };
+            
+            setCadDesigns(prev => [...prev, gltfDesign]);
+            alert(`Successfully imported GLTF: ${file.name}`);
+          },
+          (progress) => {
+            console.log('Loading progress:', progress);
+          },
+          (error) => {
+            console.error('Error loading GLTF:', error);
+            alert(`Failed to load GLTF file: ${error.message || 'Unknown error'}`);
+            URL.revokeObjectURL(url);
+          }
+        );
+      } catch (error) {
+        console.error('GLTF import error:', error);
+        alert(`Error importing GLTF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    };
+    
+    input.click();
+  }, []);
+
   const exportToCAD = useCallback(() => {
     if (objects.length === 0) {
       alert('No modules to export to CAD. Add some modules first.');
@@ -1772,12 +2090,51 @@ export default function NASAHabitatBuilder3D() {
         w_m: cadDesign.bounds.width,
         h_m: cadDesign.bounds.height,
         l_m: cadDesign.bounds.depth
+      },
+      // Store CAD design data including GLTF if applicable
+      cadData: cadDesign.isGLTF ? {
+        name: cadDesign.name,
+        isGLTF: true,
+        gltfData: cadDesign.gltfData
+      } : {
+        name: cadDesign.name,
+        shapes: cadDesign.shapes,
+        isGLTF: false
       }
     };
     
     setObjects(prev => [...prev, newObject]);
     setSelectedId(id);
     alert(`Added custom CAD module: ${cadDesign.name}`);
+  }, [generateId]);
+
+  // Create module from Blender Lab
+  const createModuleFromBlender = useCallback((blenderModule: any) => {
+    const id = generateId('CUSTOM_CAD');
+    const newObject: HabitatObject = {
+      id,
+      type: 'CUSTOM_CAD' as any, // Reuse CUSTOM_CAD type for now
+      position: [0, blenderModule.bounds.height / 2, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      size: {
+        w_m: blenderModule.bounds.width,
+        h_m: blenderModule.bounds.height,
+        l_m: blenderModule.bounds.depth
+      },
+      // Store Blender module metadata
+      blenderData: {
+        name: blenderModule.name,
+        description: blenderModule.description,
+        objects: blenderModule.objects,
+        objectCount: blenderModule.objectCount,
+        createdAt: blenderModule.createdAt
+      }
+    };
+    
+    setObjects(prev => [...prev, newObject]);
+    setSelectedId(id);
+    alert(`Added Blender module: ${blenderModule.name} (${blenderModule.objectCount} objects)`);
   }, [generateId]);
 
   // Create a new empty design
@@ -1880,6 +2237,18 @@ export default function NASAHabitatBuilder3D() {
             >
               <Folder className="w-4 h-4" />
               <span className="font-medium">Collections</span>
+            </Button>
+            
+            <Button 
+              onClick={() => setActiveTab('blender')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'blender' 
+                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
+                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
+              } border`}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="font-medium">Blender Lab</span>
             </Button>
             
             <Button 
@@ -2081,8 +2450,8 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
-          {/* Custom CAD Modules - Scrollable */}
-          {cadDesigns.length > 0 && (
+          {/* Blender Lab Modules - Custom 3D Models */}
+          {blenderModules.length > 0 && (
             <div className="p-3 border-b border-border">
               <h3 
                 className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
@@ -2093,24 +2462,25 @@ export default function NASAHabitatBuilder3D() {
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
-                Custom CAD Modules
+                Blender Lab Modules ({blenderModules.length})
               </h3>
               {showCustomCad && (
               <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <div className="grid grid-cols-3 gap-2">
-                  {cadDesigns.map((cadDesign) => (
+                  {blenderModules.map((blenderModule) => (
                     <div
-                      key={cadDesign.id}
-                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-orange-500/20 border border-border hover:border-orange-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
-                      onClick={() => createModuleFromCAD(cadDesign)}
+                      key={blenderModule.id}
+                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-cyan-500/20 border border-border hover:border-cyan-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
+                      onClick={() => createModuleFromBlender(blenderModule)}
                     >
-                      <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
-                        <Settings className="w-4 h-4" />
+                      <div className="w-8 h-8 bg-cyan-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
+                        🏗️
                       </div>
                       <div className="text-center min-w-0 w-full">
-                        <div className="font-medium text-foreground text-xs truncate">{cadDesign.name}</div>
+                        <div className="font-medium text-foreground text-xs truncate">{blenderModule.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{blenderModule.objectCount} objects</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
+                          {blenderModule.bounds.width.toFixed(1)}×{blenderModule.bounds.height.toFixed(1)}×{blenderModule.bounds.depth.toFixed(1)}m
                         </div>
                       </div>
                     </div>
@@ -2151,6 +2521,14 @@ export default function NASAHabitatBuilder3D() {
               >
                 <Shapes className="w-3 h-3 mr-1" />
                 Custom Shape Builder
+              </Button>
+              <Button 
+                onClick={() => setActiveTab('blender')} 
+                className="w-full btn-space text-xs py-2 h-8"
+                size="sm"
+              >
+                <Settings className="w-3 h-3 mr-1" />
+                Blender Laboratory
               </Button>
               
               {/* Blender API Integration Toggle */}
@@ -2367,6 +2745,11 @@ export default function NASAHabitatBuilder3D() {
             currentLayout={generateNASALayout()}
             onLoadDesign={handleLoadDesign}
             onSaveSuccess={() => setActiveTab('design')}
+          />
+        ) : activeTab === 'blender' ? (
+          <BlenderLab 
+            onBackToDesign={() => setActiveTab('design')}
+            onSaveModule={handleSaveBlenderModule}
           />
         ) : (
           <ShapeBuilder />
