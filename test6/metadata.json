@@ -1,0 +1,5 @@
+{
+  "name": "Habitat CAD Labo",
+  "description": "A web-based 3D CAD laboratory inspired by Blender and Tinkercad, allowing users to create and manipulate 3D objects in a virtual space. Features a main viewport, object manipulation gizmos, and panels for adding shapes and editing properties.",
+  "requestFramePermissions": []
+}

@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
 
+// Blender Model API Integration
+import { blenderModelService, BlenderModuleRequest } from '@/lib/blenderModelAPI';
+
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import { postCheckLayout, postSuggestLayout } from '@/lib/api';
@@ -19,7 +22,6 @@ import { HabitatValidationService } from '@/lib/habitatValidation';
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
-import CADShapeBuilder from './CADShapeBuilder';
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import { useHabitatDesign } from '@/contexts/HabitatDesignContext';
 
@@ -29,97 +31,113 @@ const MODULE_TYPES_3D = {
     color: '#3b82f6', 
     icon: '🛏️', 
     size: { width: 2.0, height: 2.1, depth: 2.2 },
-    geometry: 'sleep_pod' // Custom sleep pod shape
+    geometry: 'sleep_pod', // Custom sleep pod shape
+    blenderEnabled: true // Enable Blender API models
   },
   HYGIENE: { 
     color: '#10b981', 
     icon: '🚿', 
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'cylinder' // Cylindrical shower module
+    geometry: 'cylinder', // Cylindrical shower module
+    blenderEnabled: true
   },
   WASTE: { 
     color: '#f59e0b', 
     icon: '🚽', 
     size: { width: 1.8, height: 2.2, depth: 1.8 },
-    geometry: 'rounded_box' // Rounded waste management unit
+    geometry: 'rounded_box', // Rounded waste management unit
+    blenderEnabled: true
   },
   EXERCISE: { 
     color: '#ef4444', 
     icon: '🏋️', 
     size: { width: 3.0, height: 2.5, depth: 4.0 },
-    geometry: 'gym_module' // Multi-level exercise area
+    geometry: 'gym_module', // Multi-level exercise area
+    blenderEnabled: true
   },
   FOOD_PREP: { 
     color: '#8b5cf6', 
     icon: '🍳', 
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'kitchen_module' // L-shaped kitchen module
+    geometry: 'kitchen_module', // L-shaped kitchen module
+    blenderEnabled: true
   },
   ECLSS: { 
     color: '#22c55e', 
     icon: '💨', 
     size: { width: 3.0, height: 2.3, depth: 2.5 },
-    geometry: 'technical_rack' // Equipment rack with panels
+    geometry: 'technical_rack', // Equipment rack with panels
+    blenderEnabled: true
   },
   MEDICAL: { 
     color: '#ec4899', 
     icon: '🏥', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'medical_bay' // Medical examination area
+    geometry: 'medical_bay', // Medical examination area
+    blenderEnabled: true
   },
   MAINTENANCE: { 
     color: '#06b6d4', 
     icon: '🔧', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'workshop' // Workshop with tool storage
+    geometry: 'workshop', // Workshop with tool storage
+    blenderEnabled: true
   },
   CUSTOM_CAD: { 
     color: '#8b5cf6', 
     icon: '🏗️', 
     size: { width: 2.0, height: 2.0, depth: 2.0 },
-    geometry: 'custom' // Custom CAD-designed module
+    geometry: 'custom', // Custom CAD-designed module
+    blenderEnabled: true
   },
   STOWAGE: {
     color: '#f97316',
     icon: '📦',
     size: { width: 2.5, height: 2.3, depth: 3.5 },
-    geometry: 'storage_rack' // Multi-compartment storage
+    geometry: 'storage_rack', // Multi-compartment storage
+    blenderEnabled: true
   },
   RECREATION: {
     color: '#84cc16',
     icon: '🎮',
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'lounge_pod' // Comfortable lounge area
+    geometry: 'lounge_pod', // Comfortable lounge area
+    blenderEnabled: true
   },
   WORKSTATION: {
     color: '#64748b',
     icon: '💻',
     size: { width: 2.2, height: 2.2, depth: 2.2 },
-    geometry: 'workstation' // Desk with equipment
+    geometry: 'workstation', // Desk with equipment
+    blenderEnabled: true
   },
   AIRLOCK: {
     color: '#0ea5e9',
     icon: '🚪',
     size: { width: 2.0, height: 2.3, depth: 2.2 },
-    geometry: 'airlock_chamber' // Pressurized airlock
+    geometry: 'airlock_chamber', // Pressurized airlock
+    blenderEnabled: true
   },
   GLOVEBOX: {
     color: '#8b5cf6',
     icon: '🧪',
     size: { width: 1.4, height: 2.0, depth: 1.8 },
-    geometry: 'science_station' // Laboratory workstation
+    geometry: 'science_station', // Laboratory workstation
+    blenderEnabled: true
   },
   TRASH_MGMT: {
     color: '#6b7280',
     icon: '🗑️',
     size: { width: 1.5, height: 2.0, depth: 2.0 },
-    geometry: 'compactor' // Waste compaction unit
+    geometry: 'compactor', // Waste compaction unit
+    blenderEnabled: true
   },
   COMMON_AREA: {
     color: '#f59e0b',
     icon: '👥',
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'community_space' // Open social area
+    geometry: 'community_space', // Open social area
+    blenderEnabled: true
   }
 };
 
@@ -228,6 +246,52 @@ function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Mat
   ];
   
   return materials;
+}
+
+// Enhanced module creation with Blender API integration
+async function createEnhancedModule(
+  moduleType: FunctionalType, 
+  size: { w_m: number; l_m: number; h_m: number },
+  useBlender: boolean = false
+): Promise<THREE.Object3D> {
+  const moduleConfig = MODULE_TYPES_3D[moduleType];
+  
+  if (useBlender && moduleConfig?.blenderEnabled) {
+    try {
+      console.log(`Creating Blender model for ${moduleType}...`);
+      
+      // Request model from Blender API
+      const blenderModel = await blenderModelService.generateAndLoadModule(
+        moduleType, 
+        { width: size.w_m, height: size.h_m, depth: size.l_m }
+      );
+      
+      // Apply materials to Blender model
+      blenderModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const material = new THREE.MeshLambertMaterial({ 
+            color: moduleConfig.color,
+            transparent: true,
+            opacity: 0.8
+          });
+          child.material = material;
+        }
+      });
+      
+      return blenderModel;
+      
+    } catch (error) {
+      console.warn(`Failed to load Blender model for ${moduleType}, falling back to basic geometry:`, error);
+      // Fall through to basic geometry
+    }
+  }
+  
+  // Fallback to basic geometry
+  const geometry = createModuleGeometry(moduleConfig?.geometry || 'default', size);
+  const material = createModuleMaterial(moduleConfig, false);
+  const mesh = new THREE.Mesh(geometry, material);
+  
+  return mesh;
 }
 
 // NASA-compatible object structure
@@ -942,7 +1006,7 @@ export default function NASAHabitatBuilder3D() {
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -962,6 +1026,17 @@ export default function NASAHabitatBuilder3D() {
   // UI control states
   const [showCameraHelp, setShowCameraHelp] = useState(true);
   const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
+  
+  // Blender API Integration states
+  const [useBlenderModels, setUseBlenderModels] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('useBlenderModels') || 'false');
+    } catch {
+      return false;
+    }
+  });
+  const [blenderApiStatus, setBlenderApiStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [loadingBlenderModules, setLoadingBlenderModules] = useState<Set<string>>(new Set());
   
   // CAD Integration - Store imported CAD designs with persistence
   const [cadDesigns, setCadDesigns] = useState<Array<{
@@ -1796,18 +1871,6 @@ export default function NASAHabitatBuilder3D() {
             </Button>
             
             <Button 
-              onClick={() => setActiveTab('cad')} 
-              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'cad' 
-                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
-                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
-              } border`}
-            >
-              <Settings className="w-4 h-4" />
-              <span className="font-medium">Laboratory CAD</span>
-            </Button>
-            
-            <Button 
               onClick={() => setActiveTab('collections')} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 activeTab === 'collections' 
@@ -2089,14 +2152,31 @@ export default function NASAHabitatBuilder3D() {
                 <Shapes className="w-3 h-3 mr-1" />
                 Custom Shape Builder
               </Button>
-              <Button 
-                onClick={() => setActiveTab('cad')} 
-                className="w-full btn-space text-xs py-2 h-8"
-                size="sm"
-              >
-                <Settings className="w-3 h-3 mr-1" />
-                CAD Laboratory
-              </Button>
+              
+              {/* Blender API Integration Toggle */}
+              <div className="pt-2 border-t border-border/50">
+                <label className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground flex items-center gap-2">
+                    🏗️ Blender Models
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${blenderApiStatus === 'connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                      {blenderApiStatus}
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={useBlenderModels}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setUseBlenderModels(enabled);
+                      localStorage.setItem('useBlenderModels', JSON.stringify(enabled));
+                    }}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Generate detailed 3D models using your Blender API
+                </p>
+              </div>
             </div>
             )}
           </div>
@@ -2287,21 +2367,6 @@ export default function NASAHabitatBuilder3D() {
             currentLayout={generateNASALayout()}
             onLoadDesign={handleLoadDesign}
             onSaveSuccess={() => setActiveTab('design')}
-          />
-        ) : activeTab === 'shapes' ? (
-          <ShapeBuilder />
-        ) : activeTab === 'cad' ? (
-          <CADShapeBuilder 
-            onBackToDesign={() => setActiveTab('design')} 
-            onSaveDesign={(design) => {
-              setCadDesigns(prev => [...prev, {
-                id: Date.now().toString(),
-                name: design.name,
-                shapes: design.shapes,
-                bounds: design.bounds
-              }]);
-              alert(`CAD design "${design.name}" is now available as a custom module!`);
-            }}
           />
         ) : (
           <ShapeBuilder />

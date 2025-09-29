@@ -4,7 +4,6 @@ import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
 import DesignSystemDemo from './components/DesignSystemDemo'
 import { ValidationDemo } from './components/ValidationDemo'
 import { AnalysisPage } from './components/AnalysisPage'
-import CADStudio from './features/cad/CADStudio'
 
 // Root route
 const rootRoute = createRootRoute({
@@ -63,19 +62,6 @@ const demoRoute = createRoute({
   component: DesignSystemDemo,
 })
 
-// CAD Studio route
-const cadRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/cad',
-  component: () => (
-    <div className="h-screen bg-background">
-      <CADStudio onSaveModule={(module: any) => {
-        console.log('CAD module saved:', module);
-      }} />
-    </div>
-  ),
-})
-
 // Validation Demo route
 const validationRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -90,7 +76,6 @@ const routeTree = rootRoute.addChildren([
   analysisRoute,
   collectionsRoute,
   demoRoute,
-  cadRoute,
   validationRoute,
 ])
 
