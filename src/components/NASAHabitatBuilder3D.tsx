@@ -14,7 +14,6 @@ import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@
 
 // NASA Habitat Validation Service
 import { HabitatValidationService } from '@/lib/habitatValidation';
-import { ValidationResults } from '@/components/ValidationResults';
 
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
@@ -943,7 +942,7 @@ export default function NASAHabitatBuilder3D() {
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad' | 'analyses'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -1821,9 +1820,9 @@ export default function NASAHabitatBuilder3D() {
             </Button>
             
             <Button 
-              onClick={() => setActiveTab('analyses')} 
+              onClick={() => window.location.href = '/analysis'} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'analyses' 
+                false // Never show as active since we're redirecting
                   ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
                   : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
               } border`}
@@ -2304,118 +2303,11 @@ export default function NASAHabitatBuilder3D() {
               alert(`CAD design "${design.name}" is now available as a custom module!`);
             }}
           />
-        ) : activeTab === 'analyses' ? (
-          <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
-            <div className="max-w-6xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-purple-200 mb-2 flex items-center gap-3">
-                  <Lightbulb className="w-8 h-8 text-purple-400" />
-                  Habitat Analysis Center
-                </h2>
-                <p className="text-gray-400">Comprehensive analysis and validation tools for your habitat design</p>
-              </div>
-              
-              {/* Real-time Metrics */}
-              <MetricsHeader 
-                nhv={habitat.net_habitable_volume_m3}
-                pressurizedVolume={habitat.pressurized_volume_m3}
-                utilization={Math.min(100, (objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0) / habitat.net_habitable_volume_m3) * 100)}
-                corridorStatus={objects.length > 0 ? 'success' : 'danger'}
-              />
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* NASA Validation Panel */}
-                <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-purple-200">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      NASA Standards Validation
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-gray-300 text-sm">Validate your habitat design against NASA standards and requirements.</p>
-                    <Button 
-                      onClick={handleNASAValidation} 
-                      disabled={loading.validation}
-                      className="w-full btn-nasa"
-                    >
-                      {loading.validation ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Validating Design...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Run NASA Validation
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Quick Analysis Panel */}
-                <Card className="glass-morphism border-orange-500/30 shadow-xl glow-orange">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-orange-200">
-                      <Lightbulb className="w-5 h-5 text-orange-400" />
-                      Quick Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="bg-gray-800/40 p-3 rounded-lg">
-                        <div className="text-gray-400">Total Modules</div>
-                        <div className="text-2xl font-bold text-orange-300">{objects.length}</div>
-                      </div>
-                      <div className="bg-gray-800/40 p-3 rounded-lg">
-                        <div className="text-gray-400">Total Volume</div>
-                        <div className="text-2xl font-bold text-orange-300">
-                          {objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0).toFixed(1)}m³
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t border-gray-600/50">
-                      <Button
-                        onClick={() => {
-                          localStorage.clear();
-                          window.location.reload();
-                        }}
-                        className="w-full text-xs bg-red-600/20 hover:bg-red-600/40 border-red-500/50 text-red-300"
-                        size="sm"
-                      >
-                        🗑️ Clear All Data & Restart
-                      </Button>
-                      <div className="text-[10px] text-gray-500 mt-1 text-center">
-                        Debug: Clears localStorage and reloads page
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Validation Results Display */}
-              {validationResults && (
-                <div className="mt-6">
-                  <ValidationResults results={validationResults} />
-                </div>
-              )}
-            </div>
-          </div>
         ) : (
           <ShapeBuilder />
         )}
       </div>
 
-      {/* NASA Validation Results */}
-      {validationResults && (
-        <div className="glass-morphism border-t border-purple-500/20 p-4 shadow-2xl">
-          <div className="max-w-7xl mx-auto">
-            <ValidationResults results={validationResults} />
-          </div>
-        </div>
-      )}
-      
       {/* Context Menu */}
       {contextMenu.visible && (
         <div

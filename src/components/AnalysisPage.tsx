@@ -20,8 +20,6 @@ export const AnalysisPage = () => {
   // Debug callback for validation results
   const handleValidationComplete = (results: any) => {
     console.log('🎯 AnalysisPage - Received validation results:', results);
-    console.log('🎯 AnalysisPage - Results type:', typeof results);
-    console.log('🎯 AnalysisPage - Results JSON:', JSON.stringify(results, null, 2));
     
     // Handle case where results might be stringified JSON
     let parsedResults = results;
@@ -39,8 +37,6 @@ export const AnalysisPage = () => {
   
   // Debug logging
   console.log('🔍 AnalysisPage - Design data:', design);
-  console.log('📊 AnalysisPage - Objects:', design.objects);
-  console.log('📈 AnalysisPage - Objects length:', design.objects?.length);
   console.log('🎯 AnalysisPage - validationResults state:', validationResults);
   
   // Calculate design statistics
@@ -178,15 +174,7 @@ export const AnalysisPage = () => {
                   </CardHeader>
                   <CardContent>
                     {validationResults ? (
-                      <>
-                        <div style={{marginBottom: '10px', padding: '10px', backgroundColor: '#f0f0f0', border: '1px solid #ccc'}}>
-                          <strong>DEBUG INFO:</strong><br/>
-                          validationResults exists: {validationResults ? 'YES' : 'NO'}<br/>
-                          validationResults type: {typeof validationResults}<br/>
-                          validationResults keys: {validationResults ? Object.keys(validationResults).join(', ') : 'none'}
-                        </div>
-                        <ValidationResults results={validationResults} />
-                      </>
+                      <ValidationResults results={validationResults} />
                     ) : (
                       <div className="flex items-center justify-center h-64 text-gray-500">
                         <div className="text-center">

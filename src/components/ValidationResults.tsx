@@ -43,11 +43,8 @@ const ValidationRuleItem: React.FC<{ rule: ValidationRule }> = ({ rule }) => {
 };
 
 export const ValidationResults: React.FC<ValidationResultsProps> = ({ results }) => {
-  // Debug logging
+  // Simple debug logging
   console.log('🔍 ValidationResults received:', results);
-  console.log('🔍 ValidationResults type:', typeof results);
-  console.log('🔍 ValidationResults keys:', results ? Object.keys(results) : 'null');
-  console.log('🔍 ValidationResults JSON:', JSON.stringify(results, null, 2));
   
   if (!results) {
     console.log('❌ ValidationResults: No results provided');
@@ -68,41 +65,22 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({ results })
     );
   }
 
-  // Try to handle both direct results format and nested format
+  // Handle both string and object formats
   let nasaResults: ValidationRule[] = [];
   let suggestions: string[] = [];
-  
-  console.log('🔍 Before extraction - results:', results);
-  console.log('🔍 Before extraction - results.results:', (results as any).results);
-  console.log('🔍 Before extraction - results.suggestions:', (results as any).suggestions);
   
   if ((results as any).results && Array.isArray((results as any).results)) {
     nasaResults = (results as any).results;
     suggestions = (results as any).suggestions || [];
-    console.log('✅ Used nested format');
   } else if (Array.isArray(results)) {
     nasaResults = results;
-    console.log('✅ Used direct array format');
-  } else {
-    console.log('❌ Unknown data format');
   }
-  
-  console.log('🔍 Extracted nasaResults:', nasaResults);
-  console.log('🔍 Extracted nasaResults length:', nasaResults.length);
-  console.log('🔍 Extracted suggestions:', suggestions);
   
   const passingRules = nasaResults.filter((rule: ValidationRule) => rule.valid);
   const failingRules = nasaResults.filter((rule: ValidationRule) => rule.valid === false);
   
   // Calculate score as percentage of passing rules
   const score = nasaResults.length > 0 ? Math.round((passingRules.length / nasaResults.length) * 100) : 0;
-  
-  console.log('📊 Validation Summary:', {
-    totalRules: nasaResults.length,
-    passing: passingRules.length,
-    failing: failingRules.length,
-    score: score
-  });
 
   return (
     <div className="space-y-6">
