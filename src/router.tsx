@@ -2,6 +2,8 @@ import { createRouter, createRoute, createRootRoute } from '@tanstack/react-rout
 import { Layout } from './components/Layout'
 import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
 import DesignSystemDemo from './components/DesignSystemDemo'
+import { ValidationDemo } from './components/ValidationDemo'
+import { AnalysisPage } from './components/AnalysisPage'
 import CADStudio from './features/cad/CADStudio'
 
 // Root route
@@ -23,28 +25,11 @@ const designRoute = createRoute({
   component: NASAHabitatBuilder3D,
 })
 
-// Analysis route (placeholder for future analysis tools)
+// Analysis route (comprehensive analysis tools with NASA validation)
 const analysisRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/analysis',
-  component: () => (
-    <div className="flex items-center justify-center h-full bg-background text-foreground">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-4">NASA Mission Analysis</h2>
-        <p className="text-muted-foreground mb-6">Advanced habitat layout analysis and optimization tools</p>
-        <div className="bg-card border border-border rounded-lg p-6">
-          <p className="text-card-foreground">Coming Soon: Mission analysis features including:</p>
-          <ul className="text-left text-muted-foreground mt-4 space-y-1">
-            <li>• Volume utilization efficiency</li>
-            <li>• Crew workflow optimization</li>
-            <li>• Emergency egress path analysis</li>
-            <li>• Resource allocation modeling</li>
-            <li>• Life support system integration</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  ),
+  component: AnalysisPage,
 })
 
 // Collections route (saved layouts)
@@ -91,6 +76,13 @@ const cadRoute = createRoute({
   ),
 })
 
+// Validation Demo route
+const validationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/validation',
+  component: ValidationDemo,
+})
+
 // Create the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -99,6 +91,7 @@ const routeTree = rootRoute.addChildren([
   collectionsRoute,
   demoRoute,
   cadRoute,
+  validationRoute,
 ])
 
 // Create router

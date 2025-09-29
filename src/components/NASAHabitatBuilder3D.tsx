@@ -12,12 +12,17 @@ import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import { postCheckLayout, postSuggestLayout } from '@/lib/api';
 import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
 
+// NASA Habitat Validation Service
+import { HabitatValidationService } from '@/lib/habitatValidation';
+import { ValidationResults } from '@/components/ValidationResults';
+
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
 import CADShapeBuilder from './CADShapeBuilder';
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
+import { useHabitatDesign } from '@/contexts/HabitatDesignContext';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
 const MODULE_TYPES_3D = {
@@ -880,6 +885,9 @@ const saveToStorage = (key: string, value: any): void => {
 };
 
 export default function NASAHabitatBuilder3D() {
+  // Habitat Design Context
+  const { updateObjects, updateScenario, updateHabitat } = useHabitatDesign();
+  
   // Storage keys for persistence
   const STORAGE_KEYS = {
     SCENARIO: 'nasa-habitat-scenario',
@@ -1001,6 +1009,21 @@ export default function NASAHabitatBuilder3D() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
   }, [cadDesigns]);
+
+  // Sync with habitat design context
+  useEffect(() => {
+    console.log('🔄 NASAHabitatBuilder3D - Syncing objects to context:', objects);
+    console.log('📊 NASAHabitatBuilder3D - Objects length:', objects.length);
+    updateObjects(objects);
+  }, [objects, updateObjects]);
+
+  useEffect(() => {
+    updateScenario(scenario);
+  }, [scenario, updateScenario]);
+
+  useEffect(() => {
+    updateHabitat(habitat);
+  }, [habitat, updateHabitat]);
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -1389,18 +1412,91 @@ export default function NASAHabitatBuilder3D() {
   const handleNASAValidation = async () => {
     setLoading(prev => ({ ...prev, validation: true }));
     try {
-      const layoutData = generateNASALayout();
-      console.log('Sending to NASA API:', layoutData);
-      const results = await postCheckLayout(layoutData);
-      setValidationResults(results);
+      // Convert current layout to validation API format
+      const modules = objects.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        level: (obj as any).level || 0, // Add level property if available
+        position: [obj.position[0], obj.position[1]] as [number, number],
+        size: {
+          w_m: obj.size.w_m,
+          l_m: obj.size.l_m,
+          h_m: obj.size.h_m
+        },
+        rotation_deg: obj.rotation ? obj.rotation[1] * (180 / Math.PI) : 0, // Convert from radians
+        equipment: []
+      }));
+
+      const scenario = {
+        crew_size: parseInt(localStorage.getItem('crew_size') || '4'),
+        mission_duration_days: parseInt(localStorage.getItem('mission_duration') || '365'),
+        destination: localStorage.getItem('destination') || 'MARS_SURFACE',
+        fairing: (habitat as any).fairing || FAIRINGS[0]
+      };
+
+      const habitatData = {
+        shape: habitat.shape || 'CYLINDER',
+        levels: habitat.levels || 1,
+        dimensions: habitat.dimensions || {
+          diameter_m: 6.5,
+          height_m: 12
+        },
+        pressurized_volume_m3: habitat.pressurized_volume_m3 || 400,
+        net_habitable_volume_m3: habitat.net_habitable_volume_m3 || 300
+      };
+
+      console.log('🚀 Sending to NASA API:', { modules, scenario, habitatData });
+      const validationPayload = HabitatValidationService.convertToValidationPayload(modules, scenario, habitatData);
+      console.log('📡 Full API Payload:', validationPayload);
+      
+      const results = await HabitatValidationService.validateHabitat(validationPayload);
+      
+      console.log('✅ NASA API Response:', results);
+      
+      // Add a flag to indicate this is real API data
+      const enhancedResults = {
+        ...results,
+        isRealAPIResult: true,
+        apiSource: 'NASA Habitat Validation API'
+      };
+      
+      setValidationResults(enhancedResults);
+      
+      // Store results for persistence
+      localStorage.setItem(STORAGE_KEYS.VALIDATION_RESULTS, JSON.stringify(enhancedResults));
+      
     } catch (error) {
-      console.error('NASA validation failed:', error);
-      // Fallback to mock for demo
-      setValidationResults({
-        valid: objects.length > 0,
-        issues: objects.length === 0 ? [{ id: 'NO_MODULES', severity: 'error', message: 'No modules placed' }] : [],
-        suggestions: []
-      });
+      console.error('❌ NASA validation API failed:', error);
+      
+      // More realistic fallback validation that shows actual issues
+      const mockResults = {
+        results: [
+          {
+            rule: 'api.connection',
+            valid: false,
+            explanation: `NASA Validation API is currently unavailable: ${error.message || 'Network error'}`
+          },
+          {
+            rule: 'local.basic_check',
+            valid: objects.length > 0,
+            explanation: objects.length === 0 
+              ? 'No modules placed in habitat design' 
+              : `Local validation: Found ${objects.length} modules in design`
+          }
+        ],
+        suggestions: [
+          'NASA API validation is temporarily unavailable - this is a local fallback',
+          objects.length === 0 
+            ? 'Add habitat modules to your design before validation'
+            : 'Try validation again later when NASA API is available',
+          'For full NASA compliance validation, ensure the API endpoint is accessible'
+        ],
+        isRealAPIResult: false,
+        apiSource: 'Local Fallback (API Unavailable)',
+        apiError: error.message || 'Unknown error'
+      };
+      
+      setValidationResults(mockResults);
     }
     setLoading(prev => ({ ...prev, validation: false }));
   };
@@ -2279,6 +2375,21 @@ export default function NASAHabitatBuilder3D() {
                         </div>
                       </div>
                     </div>
+                    <div className="pt-2 border-t border-gray-600/50">
+                      <Button
+                        onClick={() => {
+                          localStorage.clear();
+                          window.location.reload();
+                        }}
+                        className="w-full text-xs bg-red-600/20 hover:bg-red-600/40 border-red-500/50 text-red-300"
+                        size="sm"
+                      >
+                        🗑️ Clear All Data & Restart
+                      </Button>
+                      <div className="text-[10px] text-gray-500 mt-1 text-center">
+                        Debug: Clears localStorage and reloads page
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -2286,51 +2397,7 @@ export default function NASAHabitatBuilder3D() {
               {/* Validation Results Display */}
               {validationResults && (
                 <div className="mt-6">
-                  <Card className="glass-morphism border-green-500/30 shadow-xl">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-green-200">
-                        {validationResults.valid ? (
-                          <>
-                            <CheckCircle className="w-5 h-5 text-green-400" />
-                            Validation Passed
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-5 h-5 text-red-400" />
-                            Validation Issues Found
-                          </>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {validationResults.issues?.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-red-300 font-medium mb-2">Issues to Address:</h4>
-                          <ul className="space-y-1">
-                            {validationResults.issues.map((issue: any, index: number) => (
-                              <li key={index} className="text-red-200 text-sm flex items-center gap-2">
-                                <XCircle className="w-4 h-4" />
-                                {issue}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {validationResults.suggestions?.length > 0 && (
-                        <div>
-                          <h4 className="text-blue-300 font-medium mb-2">Suggestions:</h4>
-                          <ul className="space-y-1">
-                            {validationResults.suggestions.map((suggestion: any, index: number) => (
-                              <li key={index} className="text-blue-200 text-sm flex items-center gap-2">
-                                <Lightbulb className="w-4 h-4" />
-                                {suggestion}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <ValidationResults results={validationResults} />
                 </div>
               )}
             </div>
@@ -2344,58 +2411,7 @@ export default function NASAHabitatBuilder3D() {
       {validationResults && (
         <div className="glass-morphism border-t border-purple-500/20 p-4 shadow-2xl">
           <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Validation Results */}
-              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-purple-200 text-shadow">
-                    {validationResults.valid ? (
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-400" />
-                    )}
-                    NASA Validation Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {validationResults.valid ? (
-                    <Alert className="border-green-500/40 bg-green-900/30 backdrop-blur-sm">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <AlertDescription className="text-green-200 text-shadow-sm">
-                        Habitat layout meets NASA requirements and safety standards.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-2">
-                      {validationResults.issues?.map((issue: any, index: number) => (
-                        <Alert key={index} className="border-red-500/40 bg-red-900/30 backdrop-blur-sm">
-                          <XCircle className="h-4 w-4 text-red-400" />
-                          <AlertDescription className="text-red-200 text-shadow-sm">{issue.message}</AlertDescription>
-                        </Alert>
-                      ))}
-                    </div>
-                  )}
-                  {validationResults.suggestions?.map((suggestion: any, index: number) => (
-                    <Alert key={index} className="border-orange-500/40 bg-orange-900/30 backdrop-blur-sm">
-                      <Lightbulb className="h-4 w-4 text-orange-400" />
-                      <AlertDescription className="text-orange-200 text-shadow-sm">{suggestion.message}</AlertDescription>
-                    </Alert>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* NASA Layout JSON */}
-              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-blue">
-                <CardHeader>
-                  <CardTitle className="text-purple-300 text-shadow">NASA Layout Schema</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-xs bg-gray-900/60 backdrop-blur-sm p-4 rounded-lg overflow-x-auto text-gray-300 max-h-64 border border-gray-700/50">
-                    {JSON.stringify(generateNASALayout(), null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            </div>
+            <ValidationResults results={validationResults} />
           </div>
         </div>
       )}
