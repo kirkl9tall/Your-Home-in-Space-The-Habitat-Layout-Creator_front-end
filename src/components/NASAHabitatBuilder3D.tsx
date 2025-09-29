@@ -1,23 +1,24 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import { Loader2, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
 
 // Blender Model API Integration
-import { blenderModelService, BlenderModuleRequest } from '@/lib/blenderModelAPI';
+
 
 // Blender Laboratory Integration
 import BlenderLab from '@/features/blender/BlenderLab';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
-import { postCheckLayout, postSuggestLayout } from '@/lib/api';
-import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
+
+import { Layout, Scenario } from '@/lib/schemas';
 
 // NASA Habitat Validation Service
 import { HabitatValidationService } from '@/lib/habitatValidation';
@@ -26,7 +27,7 @@ import { HabitatValidationService } from '@/lib/habitatValidation';
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
-import { MetricsHeader } from '@/features/analyze/MetricsHeader';
+
 import { useHabitatDesign } from '@/contexts/HabitatDesignContext';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
@@ -630,6 +631,7 @@ function ThreeScene({
   const isDraggingObjectRef = useRef(false);
   const dragOffsetRef = useRef(new THREE.Vector3());
   const animationIdRef = useRef<number>();
+  const transformControlsRef = useRef<TransformControls>();
 
   // Camera control state
   const cameraStateRef = useRef({
@@ -642,6 +644,8 @@ function ThreeScene({
     panSpeed: 0.02,
     rotateSpeed: 0.005
   });
+
+
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -697,6 +701,332 @@ function ThreeScene({
 
       // Add canvas to DOM
       mountRef.current.appendChild(renderer.domElement);
+
+      // Create Custom Gizmo System (since TransformControls aren't working)
+      const customGizmoRef = { current: null as THREE.Group | null };
+      
+      function createCustomGizmo() {
+        const gizmoGroup = new THREE.Group();
+        
+        // Create X-axis arrow (red)
+        const xArrow = createArrow(0xff0000, new THREE.Vector3(1, 0, 0));
+        xArrow.userData = { axis: 'x' };
+        gizmoGroup.add(xArrow);
+        
+        // Create Y-axis arrow (green)  
+        const yArrow = createArrow(0x00ff00, new THREE.Vector3(0, 1, 0));
+        yArrow.userData = { axis: 'y' };
+        gizmoGroup.add(yArrow);
+        
+        // Create Z-axis arrow (blue)
+        const zArrow = createArrow(0x0000ff, new THREE.Vector3(0, 0, 1));
+        zArrow.userData = { axis: 'z' };
+        gizmoGroup.add(zArrow);
+        
+        gizmoGroup.visible = false; // Start hidden
+        scene.add(gizmoGroup);
+        customGizmoRef.current = gizmoGroup;
+        
+        console.log('Custom gizmo system created');
+      }
+      
+      function createArrow(color: number, direction: THREE.Vector3) {
+        const group = new THREE.Group();
+        
+        // Create a more professional arrow design
+        const axisName = direction.x !== 0 ? 'X' : direction.y !== 0 ? 'Y' : 'Z';
+        
+        // Base line - thin line from center to arrow
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          direction.clone().multiplyScalar(2.5)
+        ]);
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+          color: color,
+          linewidth: 3,
+          transparent: true,
+          opacity: 0.8
+        });
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        
+        // Arrow shaft - sleeker design
+        const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.5);
+        const shaftMaterial = new THREE.MeshLambertMaterial({ 
+          color: color,
+          transparent: true,
+          opacity: 0.9
+        });
+        const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+        
+        // Arrow head - more prominent
+        const headGeometry = new THREE.ConeGeometry(0.25, 0.8);
+        const headMaterial = new THREE.MeshLambertMaterial({ 
+          color: color,
+          transparent: false,
+          opacity: 1.0
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        
+        // Position and orient based on axis
+        if (direction.x !== 0) {
+          // X-axis (red) - horizontal
+          shaft.position.set(direction.x * 1.5, 0, 0);
+          head.position.set(direction.x * 2.5, 0, 0);
+          shaft.rotateZ(-Math.PI / 2);
+          head.rotateZ(-Math.PI / 2);
+        } else if (direction.y !== 0) {
+          // Y-axis (green) - vertical
+          shaft.position.set(0, direction.y * 1.5, 0);
+          head.position.set(0, direction.y * 2.5, 0);
+          // No rotation needed for Y
+        } else if (direction.z !== 0) {
+          // Z-axis (blue) - depth
+          shaft.position.set(0, 0, direction.z * 1.5);
+          head.position.set(0, 0, direction.z * 2.5);
+          shaft.rotateX(Math.PI / 2);
+          head.rotateX(Math.PI / 2);
+        }
+        
+        // Add subtle glow effect
+        const glowGeometry = new THREE.SphereGeometry(0.15, 8, 6);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.3
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(head.position);
+        
+        // Make interactive
+        shaft.userData.interactive = true;
+        head.userData.interactive = true;
+        line.userData.interactive = true;
+        
+        group.add(line);
+        group.add(shaft);
+        group.add(head);
+        group.add(glow);
+        
+        // Store original materials for hover effects
+        group.userData.originalMaterials = {
+          shaft: shaftMaterial.clone(),
+          head: headMaterial.clone(),
+          line: lineMaterial.clone()
+        };
+        
+        return group;
+      }
+      
+      createCustomGizmo();
+      transformControlsRef.current = customGizmoRef.current as any;
+      
+      // Add gizmo interaction system
+      let isDraggingGizmo = false;
+      let dragStartPosition = new THREE.Vector3();
+      let draggedAxis = '';
+      let draggedObject: THREE.Object3D | null = null;
+      
+      function onGizmoMouseDown(event: MouseEvent) {
+        if (!customGizmoRef.current || !customGizmoRef.current.visible) return;
+        
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+        
+        // Check intersection with gizmo arrows
+        const gizmoChildren: THREE.Object3D[] = [];
+        customGizmoRef.current.traverse((child) => {
+          if (child.userData.axis) {
+            gizmoChildren.push(child);
+          }
+        });
+        
+        const intersects = raycaster.intersectObjects(gizmoChildren, true);
+        if (intersects.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          
+          const intersected = intersects[0].object;
+          let axis = '';
+          
+          // Find which axis was clicked
+          let current = intersected;
+          while (current && !current.userData.axis) {
+            current = current.parent!;
+          }
+          
+          if (current && current.userData.axis) {
+            axis = current.userData.axis;
+            isDraggingGizmo = true;
+            draggedAxis = axis;
+            dragStartPosition.copy(intersects[0].point);
+            
+            // Find the selected object
+            if (selectedId) {
+              draggedObject = meshesRef.current.get(selectedId) || scene.getObjectByName(selectedId) || null;
+              console.log('Dragged object found:', !!draggedObject, 'selectedId:', selectedId);
+              console.log('Available meshes:', Array.from(meshesRef.current.keys()));
+            }
+            
+            console.log(`Started dragging ${axis} axis, draggedObject:`, !!draggedObject);
+            
+            // Disable camera controls while dragging
+            cameraStateRef.current.isRotating = false;
+            cameraStateRef.current.isPanning = false;
+          }
+        }
+      }
+      
+      function onGizmoMouseMove(event: MouseEvent) {
+        if (!isDraggingGizmo || !draggedObject || !customGizmoRef.current) {
+          if (isDraggingGizmo) {
+            console.log('Mouse move blocked - isDraggingGizmo:', isDraggingGizmo, 'draggedObject:', !!draggedObject, 'customGizmoRef.current:', !!customGizmoRef.current);
+          }
+          return;
+        }
+        
+        console.log('Mouse move active, moving object:', draggedAxis);
+        
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+        
+        // Create a plane for dragging based on the axis
+        let planeNormal = new THREE.Vector3();
+        if (draggedAxis === 'x') {
+          planeNormal.set(0, 0, 1); // YZ plane
+        } else if (draggedAxis === 'y') {
+          planeNormal.set(1, 0, 0); // XZ plane  
+        } else if (draggedAxis === 'z') {
+          planeNormal.set(0, 1, 0); // XY plane
+        }
+        
+        const plane = new THREE.Plane(planeNormal, 0);
+        plane.setFromNormalAndCoplanarPoint(planeNormal, draggedObject.position);
+        
+        const intersection = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(plane, intersection)) {
+          const delta = intersection.clone().sub(dragStartPosition);
+          
+          // Apply movement only along the selected axis
+          const newPosition = draggedObject.position.clone();
+          console.log('Original position:', newPosition, 'delta:', delta);
+          
+          if (draggedAxis === 'x') {
+            newPosition.x += delta.x;
+          } else if (draggedAxis === 'y') {
+            newPosition.y += delta.y;
+          } else if (draggedAxis === 'z') {
+            newPosition.z += delta.z;
+          }
+          
+          console.log('New position after delta:', newPosition);
+          
+          // Apply basic ground collision - keep objects above Y=0
+          let finalPosition = newPosition.clone();
+          if (finalPosition.y < 0.5) {
+            finalPosition.y = 0.5; // Keep objects above ground
+          }
+          
+          // Update object position
+          draggedObject.position.copy(finalPosition);
+          
+          // Keep gizmos attached to the object
+          if (customGizmoRef.current) {
+            customGizmoRef.current.position.copy(finalPosition);
+          }
+          
+          // Force render to see the movement immediately
+          renderer.render(scene, camera);
+          
+          dragStartPosition.copy(intersection);
+        }
+      }
+      
+      function onGizmoMouseUp() {
+        if (isDraggingGizmo && draggedObject && selectedId) {
+          // Update state with the final position
+          const finalPosition = draggedObject.position;
+          setObjects(prev => 
+            prev.map(obj => 
+              obj.id === selectedId 
+                ? { ...obj, position: [finalPosition.x, finalPosition.y, finalPosition.z] }
+                : obj
+            )
+          );
+          
+          isDraggingGizmo = false;
+          draggedAxis = '';
+          draggedObject = null;
+          console.log('Stopped dragging gizmo, updated state');
+        }
+      }
+      
+      // Add hover detection for better UX
+      let hoveredArrow: THREE.Object3D | null = null;
+      
+      function onGizmoHover(event: MouseEvent) {
+        if (!customGizmoRef.current || !customGizmoRef.current.visible || isDraggingGizmo) return;
+        
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+        
+        // Check intersection with gizmo arrows
+        const gizmoChildren: THREE.Object3D[] = [];
+        customGizmoRef.current.traverse((child) => {
+          if (child.userData.interactive) {
+            gizmoChildren.push(child);
+          }
+        });
+        
+        const intersects = raycaster.intersectObjects(gizmoChildren, true);
+        
+        // Reset previous hover
+        if (hoveredArrow) {
+          hoveredArrow.traverse((child: any) => {
+            if (child.material && child.material.emissive) {
+              child.material.emissive.setHex(0x000000);
+            }
+          });
+          renderer.domElement.style.cursor = 'default';
+        }
+        
+        // Set new hover
+        if (intersects.length > 0) {
+          let current = intersects[0].object;
+          while (current && !current.userData.axis) {
+            current = current.parent!;
+          }
+          
+          if (current && current !== hoveredArrow) {
+            hoveredArrow = current;
+            current.traverse((child: any) => {
+              if (child.material && child.material.emissive) {
+                child.material.emissive.setHex(0x444444);
+              }
+            });
+            renderer.domElement.style.cursor = 'pointer';
+          }
+        } else {
+          hoveredArrow = null;
+        }
+      }
+      
+      // Add event listeners for gizmo interaction
+      renderer.domElement.addEventListener('mousedown', onGizmoMouseDown);
+      renderer.domElement.addEventListener('mousemove', onGizmoMouseMove);
+      renderer.domElement.addEventListener('mouseup', onGizmoMouseUp);
+      renderer.domElement.addEventListener('mousemove', onGizmoHover);
 
       // Lighting with dynamic colors
       const ambientLight = new THREE.AmbientLight(envConfig.ambientLight, 0.4);
@@ -776,6 +1106,30 @@ function ThreeScene({
 
       // Mouse events
       function handleMouseDown(event: MouseEvent) {
+        // Check if we're clicking on a gizmo first - if so, let the gizmo handler take over
+        if (customGizmoRef.current && customGizmoRef.current.visible) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+          
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+          
+          // Check intersection with gizmo arrows
+          const gizmoChildren: THREE.Object3D[] = [];
+          customGizmoRef.current.traverse((child) => {
+            if (child.userData.axis || child.userData.interactive) {
+              gizmoChildren.push(child);
+            }
+          });
+          
+          const gizmoIntersects = raycaster.intersectObjects(gizmoChildren, true);
+          if (gizmoIntersects.length > 0) {
+            // Let the gizmo handler deal with this - don't do object selection
+            return;
+          }
+        }
+        
         event.preventDefault();
         const state = cameraStateRef.current;
         
@@ -811,11 +1165,17 @@ function ThreeScene({
             
             if (clickedId) {
               setSelectedId(clickedId);
-              isDraggingObjectRef.current = true;
-              // Use the top-level object (with the id) for positioning
-              const selectedMesh = meshesRef.current.get(clickedId) || clickedObject;
-              const intersectionPoint = intersects[0].point;
-              dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
+              
+              // Only allow direct object dragging if gizmos are not visible
+              // When gizmos are visible, objects should only move via gizmo arrows
+              const gizmosVisible = customGizmoRef.current && customGizmoRef.current.visible;
+              if (!gizmosVisible) {
+                isDraggingObjectRef.current = true;
+                // Use the top-level object (with the id) for positioning
+                const selectedMesh = meshesRef.current.get(clickedId) || clickedObject;
+                const intersectionPoint = intersects[0].point;
+                dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
+              }
             } else {
               setSelectedId(null);
               state.isRotating = true;
@@ -853,8 +1213,10 @@ function ThreeScene({
             const newPos = groundHit.add(dragOffsetRef.current);
             newPos.x = snap(newPos.x);
             newPos.z = snap(newPos.z);
-            newPos.y = Math.max(1, newPos.y);
-            selectedMesh.position.copy(newPos);
+            
+            // Apply proper ground collision detection
+            const correctedPos = ensureAboveGround(newPos, getObjectHeight(selectedMesh));
+            selectedMesh.position.copy(correctedPos);
           }
           return;
         }
@@ -1071,10 +1433,14 @@ function ThreeScene({
 
     // Add new meshes
     objects.forEach((obj) => {
-      const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
-      if (!moduleConfig) return;
+      try {
+        const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
+        if (!moduleConfig) {
+          console.warn(`No module config found for type: ${obj.type}`);
+          return;
+        }
 
-      const isSelected = selectedId === obj.id;
+        const isSelected = selectedId === obj.id;
       
       // Check if this is a Blender module with custom geometry
       const geometryType = (obj as any).blenderData ? 'blender' : 
@@ -1091,7 +1457,26 @@ function ThreeScene({
       if (geometry instanceof THREE.Group) {
         // Handle Blender modules that return a Group
         object3D = geometry;
-        object3D.position.set(...obj.position);
+        
+        try {
+          // Apply ground collision detection
+          const correctedPosition = ensureAboveGround(new THREE.Vector3(...obj.position), getObjectHeight(object3D));
+          object3D.position.copy(correctedPosition);
+          
+          // Update the object state if position was corrected
+          if (correctedPosition.y !== obj.position[1]) {
+            setObjects(prev => prev.map(prevObj => 
+              prevObj.id === obj.id 
+                ? { ...prevObj, position: [correctedPosition.x, correctedPosition.y, correctedPosition.z] }
+                : prevObj
+            ));
+          }
+        } catch (error) {
+          console.error(`Error applying ground collision to object ${obj.id}:`, error);
+          // Fallback: just set position without collision detection
+          object3D.position.set(...obj.position);
+        }
+        
         object3D.rotation.set(...(obj.rotation || [0, 0, 0]));
         object3D.scale.set(...(obj.scale || [1, 1, 1]));
         object3D.userData = { id: obj.id, type: obj.type };
@@ -1119,7 +1504,14 @@ function ThreeScene({
         // Handle regular geometries that return BufferGeometry
         const material = createModuleMaterial(moduleConfig, isSelected);
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(...obj.position);
+        
+        // Simple ground collision - keep objects above Y=0.5
+        const position = [...obj.position];
+        if (position[1] < 0.5) {
+          position[1] = 0.5;
+        }
+        mesh.position.set(...position);
+        
         mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
         mesh.scale.set(...(obj.scale || [1, 1, 1]));
         mesh.castShadow = true;
@@ -1128,10 +1520,52 @@ function ThreeScene({
         object3D = mesh;
       }
 
-      sceneRef.current!.add(object3D);
-      meshesRef.current.set(obj.id, object3D);
+        sceneRef.current!.add(object3D);
+        meshesRef.current.set(obj.id, object3D);
+        console.log('Stored mesh for object:', { id: obj.id, object3D });
+      } catch (error) {
+        console.error(`Error creating object ${obj.id} (type: ${obj.type}):`, error);
+      }
     });
+    
+    console.log('All meshes:', Array.from(meshesRef.current.keys()));
   }, [objects, selectedId, isInitialized]);
+
+  // Show/hide custom gizmos based on selected object
+  useEffect(() => {
+    const customGizmo = transformControlsRef.current as THREE.Group | null;
+    
+    if (!customGizmo) {
+      console.log('No custom gizmo available');
+      return;
+    }
+
+    if (selectedId) {
+      // Find the selected object in the scene
+      const selectedObject = meshesRef.current.get(selectedId);
+      console.log('Selected object from meshes:', { selectedObject: !!selectedObject, selectedId, meshesSize: meshesRef.current.size });
+      
+      if (selectedObject) {
+        // Position gizmo at selected object's location
+        customGizmo.position.copy(selectedObject.position);
+        customGizmo.visible = true;
+        
+        console.log('Custom gizmo positioned at:', selectedObject.position, 'for object:', selectedId);
+        
+        // Force render
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
+      } else {
+        console.log('Selected object not found in meshes');
+        customGizmo.visible = false;
+      }
+    } else {
+      // No object selected, hide gizmo
+      customGizmo.visible = false;
+      console.log('Custom gizmo hidden');
+    }
+  }, [selectedId]);
 
   return (
     <div ref={mountRef} className="w-full h-full bg-background">
@@ -1167,6 +1601,36 @@ const saveToStorage = (key: string, value: any): void => {
 };
 
 export default function NASAHabitatBuilder3D() {
+  // Ground collision detection system - moved to component level
+  const ensureAboveGround = (position: THREE.Vector3, objectHeight: number = 1): THREE.Vector3 => {
+    try {
+      const groundLevel = 0; // Y=0 is our ground plane
+      const minY = groundLevel + (objectHeight / 2); // Objects should sit ON the ground, not sink into it
+      
+      if (position.y < minY) {
+        console.log(`Object below ground detected! Y: ${position.y} → corrected to: ${minY}`);
+        position.y = minY;
+      }
+      
+      return position;
+    } catch (error) {
+      console.error('Error in ensureAboveGround:', error);
+      return position;
+    }
+  };
+  
+  // Function to get object height from its bounding box
+  const getObjectHeight = (obj: THREE.Object3D): number => {
+    try {
+      const box = new THREE.Box3().setFromObject(obj);
+      const height = box.max.y - box.min.y;
+      return height > 0 ? height : 1; // Fallback to 1 meter if calculation fails
+    } catch (error) {
+      console.error('Error calculating object height:', error);
+      return 1; // Fallback height
+    }
+  };
+
   // Habitat Design Context
   const { updateObjects, updateScenario, updateHabitat } = useHabitatDesign();
   
@@ -1179,6 +1643,8 @@ export default function NASAHabitatBuilder3D() {
     VALIDATION_RESULTS: 'nasa-habitat-validation-results',
     ACTIVE_TAB: 'nasa-habitat-active-tab'
   };
+
+
 
   // NASA Mission Scenario
   const [scenario, setScenario] = useState(() => 
@@ -1337,15 +1803,15 @@ export default function NASAHabitatBuilder3D() {
     console.log('🔄 NASAHabitatBuilder3D - Syncing objects to context:', objects);
     console.log('📊 NASAHabitatBuilder3D - Objects length:', objects.length);
     updateObjects(objects);
-  }, [objects, updateObjects]);
+  }, [objects]);
 
   useEffect(() => {
     updateScenario(scenario);
-  }, [scenario, updateScenario]);
+  }, [scenario]);
 
   useEffect(() => {
     updateHabitat(habitat);
-  }, [habitat, updateHabitat]);
+  }, [habitat]);
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -1360,10 +1826,15 @@ export default function NASAHabitatBuilder3D() {
     };
   }, []);
 
+
+
   // Keyboard controls for selected objects
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (!selectedId) return;
+      if (!selectedId) {
+        console.log('Arrow key pressed but no object selected');
+        return;
+      }
       
       // Skip if user is typing in an input field
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
@@ -1387,34 +1858,96 @@ export default function NASAHabitatBuilder3D() {
           const newObj = { ...obj };
 
           switch (event.code) {
-            // Movement controls
+            // Movement controls - Camera-relative like Blender
             case 'ArrowLeft':
-              newObj.position = [obj.position[0] - moveStep, obj.position[1], obj.position[2]];
+              // Move left relative to camera (Blender-style)
+              if (sceneRefs.current.camera) {
+                console.log('Using camera-relative movement for ArrowLeft');
+                const camera = sceneRefs.current.camera;
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
+                right.y = 0; // Keep movement horizontal
+                right.normalize();
+                const movement = right.multiplyScalar(-moveStep);
+                newObj.position = [
+                  obj.position[0] + movement.x,
+                  obj.position[1],
+                  obj.position[2] + movement.z
+                ];
+              } else {
+                console.log('Camera not available, using absolute movement');
+                // Fallback to absolute movement
+                newObj.position = [obj.position[0] - moveStep, obj.position[1], obj.position[2]];
+              }
               actionDescription = `Moving Left (${moveStep}m)`;
               break;
             case 'ArrowRight':
-              newObj.position = [obj.position[0] + moveStep, obj.position[1], obj.position[2]];
+              // Move right relative to camera (Blender-style)
+              if (sceneRefs.current.camera) {
+                const camera = sceneRefs.current.camera;
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
+                right.y = 0; // Keep movement horizontal
+                right.normalize();
+                const movement = right.multiplyScalar(moveStep);
+                newObj.position = [
+                  obj.position[0] + movement.x,
+                  obj.position[1],
+                  obj.position[2] + movement.z
+                ];
+              } else {
+                // Fallback to absolute movement
+                newObj.position = [obj.position[0] + moveStep, obj.position[1], obj.position[2]];
+              }
               actionDescription = `Moving Right (${moveStep}m)`;
               break;
             case 'ArrowUp':
               if (event.ctrlKey) {
-                // Ctrl + Up: Move up (Y axis)
+                // Ctrl + Up: Move up (Y axis) - absolute up
                 newObj.position = [obj.position[0], obj.position[1] + moveStep, obj.position[2]];
                 actionDescription = `Moving Up (${moveStep}m)`;
               } else {
-                // Up: Move forward (Z axis)
-                newObj.position = [obj.position[0], obj.position[1], obj.position[2] - moveStep];
+                // Move forward relative to camera (Blender-style)
+                if (sceneRefs.current.camera) {
+                  const camera = sceneRefs.current.camera;
+                  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                  forward.y = 0; // Keep movement horizontal
+                  forward.normalize();
+                  const movement = forward.multiplyScalar(moveStep);
+                  newObj.position = [
+                    obj.position[0] + movement.x,
+                    obj.position[1],
+                    obj.position[2] + movement.z
+                  ];
+                } else {
+                  // Fallback to absolute movement
+                  newObj.position = [obj.position[0], obj.position[1], obj.position[2] - moveStep];
+                }
                 actionDescription = `Moving Forward (${moveStep}m)`;
               }
               break;
             case 'ArrowDown':
               if (event.ctrlKey) {
-                // Ctrl + Down: Move down (Y axis)
+                // Ctrl + Down: Move down (Y axis) - absolute down
                 newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
                 actionDescription = `Moving Down (${moveStep}m)`;
               } else {
-                // Down: Move backward (Z axis)
-                newObj.position = [obj.position[0], obj.position[1], obj.position[2] + moveStep];
+                // Move backward relative to camera (Blender-style)
+                if (sceneRefs.current.camera) {
+                  const camera = sceneRefs.current.camera;
+                  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                  forward.y = 0; // Keep movement horizontal
+                  forward.normalize();
+                  const movement = forward.multiplyScalar(-moveStep);
+                  newObj.position = [
+                    obj.position[0] + movement.x,
+                    obj.position[1],
+                    obj.position[2] + movement.z
+                  ];
+                } else {
+                  // Fallback to absolute movement
+                  newObj.position = [obj.position[0], obj.position[1], obj.position[2] + moveStep];
+                }
                 actionDescription = `Moving Backward (${moveStep}m)`;
               }
               break;
@@ -1433,10 +1966,18 @@ export default function NASAHabitatBuilder3D() {
               actionDescription = `Rotating Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
               break;
             case 'KeyR':
-              // R: Rotate around X axis (pitch up)
-              const currentRotationX = obj.rotation?.[0] || 0;
-              newObj.rotation = [currentRotationX + rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
-              actionDescription = `Pitch Up (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              if (event.shiftKey || event.ctrlKey) {
+                // Shift/Ctrl + R: Rotate around X axis (pitch up) - existing functionality
+                const currentRotationX = obj.rotation?.[0] || 0;
+                newObj.rotation = [currentRotationX + rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
+                actionDescription = `Pitch Up (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              } else {
+                // R key alone: Switch to rotate mode (like Blender)
+                if (transformControlsRef.current) {
+                  transformControlsRef.current.setMode('rotate');
+                  actionDescription = 'Transform Mode: Rotate';
+                }
+              }
               break;
             case 'KeyF':
               // F: Rotate around X axis (pitch down)
@@ -1452,22 +1993,46 @@ export default function NASAHabitatBuilder3D() {
               actionDescription = `Moving Up (${moveStep}m)`;
               break;
             case 'KeyS':
-              // S: Move down (height)
-              newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
-              actionDescription = `Moving Down (${moveStep}m)`;
+              if (event.shiftKey || event.ctrlKey) {
+                // Shift/Ctrl + S: Move down (height) - existing functionality
+                newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
+                actionDescription = `Moving Down (${moveStep}m)`;
+              } else {
+                // S key alone: Switch to scale mode (like Blender)
+                if (transformControlsRef.current) {
+                  transformControlsRef.current.setMode('scale');
+                  actionDescription = 'Transform Mode: Scale';
+                }
+              }
               break;
 
             case 'KeyT':
-              // T: Rotate around Z axis (roll left)
-              const currentRotationZ = obj.rotation?.[2] || 0;
-              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ - rotateStep];
-              actionDescription = `Roll Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              if (event.shiftKey && obj.rotation) {
+                // Shift + T: Roll left around Z axis - existing functionality
+                const currentRotationZ = obj.rotation[2] || 0;
+                newObj.rotation = [obj.rotation[0] || 0, obj.rotation[1] || 0, currentRotationZ - rotateStep];
+                actionDescription = `Roll Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              } else {
+                // T key: Switch to translate mode (like Blender)
+                if (transformControlsRef.current) {
+                  transformControlsRef.current.setMode('translate');
+                  actionDescription = 'Transform Mode: Translate (Move)';
+                }
+              }
               break;
             case 'KeyG':
-              // G: Rotate around Z axis (roll right)
-              const currentRotationZ2 = obj.rotation?.[2] || 0;
-              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ2 + rotateStep];
-              actionDescription = `Roll Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              if (event.shiftKey && obj.rotation) {
+                // Shift + G: Roll right around Z axis - existing functionality
+                const currentRotationZ2 = obj.rotation[2] || 0;
+                newObj.rotation = [obj.rotation[0] || 0, obj.rotation[1] || 0, currentRotationZ2 + rotateStep];
+                actionDescription = `Roll Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
+              } else {
+                // G key: Switch to translate mode (like Blender)
+                if (transformControlsRef.current) {
+                  transformControlsRef.current.setMode('translate');
+                  actionDescription = 'Transform Mode: Translate (Move)';
+                }
+              }
               break;
 
             // Scale controls
@@ -1515,6 +2080,7 @@ export default function NASAHabitatBuilder3D() {
                 actionDescription = 'Reset Scale';
               }
               break;
+
           }
 
           return newObj;
@@ -2697,9 +3263,9 @@ export default function NASAHabitatBuilder3D() {
                 
                 <div className="text-gray-300 text-shadow-sm space-y-1">
                   <div className="text-[10px] font-medium text-yellow-200">Objects (when selected):</div>
-                  <div className="text-[10px]">• Arrow keys: Move X/Z • W/S: Height</div>
-                  <div className="text-[10px]">• Q/E: Rotate • R/F/T/G: Pitch/Roll</div>
-                  <div className="text-[10px]">• Hold Shift: Faster movement</div>
+                  <div className="text-[10px]">• Arrow keys: Move relative to camera view (Blender-style)</div>
+                  <div className="text-[10px]">• W/S: Height • Q/E: Rotate • R/F/T/G: Pitch/Roll</div>
+                  <div className="text-[10px]">• Hold Shift: Faster movement • Ctrl+↑↓: Vertical</div>
                 </div>
               </div>
             </div>
@@ -2713,17 +3279,17 @@ export default function NASAHabitatBuilder3D() {
               </div>
               <div className="text-[10px] text-gray-300 space-y-1 text-shadow-sm">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">←→</kbd> Move X</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">↑↓</kbd> Move Z</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">←→</kbd> Left/Right</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">↑↓</kbd> Fwd/Back</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">W/S</kbd> Height</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Q/E</kbd> Rotate Y</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">R/F</kbd> Pitch</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">T/G</kbd> Roll</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Ctrl+±</kbd> Scale</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">G</kbd> Move Mode</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">R</kbd> Rotate Mode</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">S</kbd> Scale Mode</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Shift</kbd> Fast</div>
                 </div>
                 <div className="text-[9px] text-gray-400 mt-2 border-t border-gray-600/50 pt-1">
-                  Ctrl+X: Reset rotation • Ctrl+C: Reset scale
+                  3D Gizmos: G/R/S keys switch transform modes • Ctrl+X: Reset rotation
                 </div>
               </div>
             </div>
