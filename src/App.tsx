@@ -1,6 +1,5 @@
 import { RouterProvider } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { HabitatDesignProvider } from './contexts/HabitatDesignContext'
 import { router } from './router'
 import './globals.css'
 
@@ -17,9 +16,7 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <HabitatDesignProvider>
-        <RouterProvider router={router} />
-      </HabitatDesignProvider>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }

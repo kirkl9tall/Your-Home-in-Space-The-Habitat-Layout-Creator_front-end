@@ -13,24 +13,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: {
-    proxy: {
-      '/api/nasa': {
-        target: 'https://amine759--nasa-habitat-validator-api.modal.run',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/nasa/, ''),
-        secure: true,
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            console.log('🌐 Proxying NASA API request:', req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, res) => {
-            console.log('📥 NASA API response status:', proxyRes.statusCode);
-          });
-        }
-      }
-    }
-  },
   build: {
     rollupOptions: {
       output: {

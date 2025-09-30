@@ -1,34 +1,23 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-import { Loader2, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
-
-// Blender Model API Integration
-
-
-// Blender Laboratory Integration
-import BlenderLab from '@/features/blender/BlenderLab';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
-
-import { Layout, Scenario } from '@/lib/schemas';
-
-// NASA Habitat Validation Service
-import { HabitatValidationService } from '@/lib/habitatValidation';
+import { postCheckLayout, postSuggestLayout } from '@/lib/api';
+import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
 
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
-
-import { useHabitatDesign } from '@/contexts/HabitatDesignContext';
+import CADShapeBuilder from './CADShapeBuilder';
+import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
 const MODULE_TYPES_3D = {
@@ -36,113 +25,97 @@ const MODULE_TYPES_3D = {
     color: '#3b82f6', 
     icon: '🛏️', 
     size: { width: 2.0, height: 2.1, depth: 2.2 },
-    geometry: 'sleep_pod', // Custom sleep pod shape
-    blenderEnabled: true // Enable Blender API models
+    geometry: 'sleep_pod' // Custom sleep pod shape
   },
   HYGIENE: { 
     color: '#10b981', 
     icon: '🚿', 
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'cylinder', // Cylindrical shower module
-    blenderEnabled: true
+    geometry: 'cylinder' // Cylindrical shower module
   },
   WASTE: { 
     color: '#f59e0b', 
     icon: '🚽', 
     size: { width: 1.8, height: 2.2, depth: 1.8 },
-    geometry: 'rounded_box', // Rounded waste management unit
-    blenderEnabled: true
+    geometry: 'rounded_box' // Rounded waste management unit
   },
   EXERCISE: { 
     color: '#ef4444', 
     icon: '🏋️', 
     size: { width: 3.0, height: 2.5, depth: 4.0 },
-    geometry: 'gym_module', // Multi-level exercise area
-    blenderEnabled: true
+    geometry: 'gym_module' // Multi-level exercise area
   },
   FOOD_PREP: { 
     color: '#8b5cf6', 
     icon: '🍳', 
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'kitchen_module', // L-shaped kitchen module
-    blenderEnabled: true
+    geometry: 'kitchen_module' // L-shaped kitchen module
   },
   ECLSS: { 
     color: '#22c55e', 
     icon: '💨', 
     size: { width: 3.0, height: 2.3, depth: 2.5 },
-    geometry: 'technical_rack', // Equipment rack with panels
-    blenderEnabled: true
+    geometry: 'technical_rack' // Equipment rack with panels
   },
   MEDICAL: { 
     color: '#ec4899', 
     icon: '🏥', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'medical_bay', // Medical examination area
-    blenderEnabled: true
+    geometry: 'medical_bay' // Medical examination area
   },
   MAINTENANCE: { 
     color: '#06b6d4', 
     icon: '🔧', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'workshop', // Workshop with tool storage
-    blenderEnabled: true
+    geometry: 'workshop' // Workshop with tool storage
   },
   CUSTOM_CAD: { 
     color: '#8b5cf6', 
     icon: '🏗️', 
     size: { width: 2.0, height: 2.0, depth: 2.0 },
-    geometry: 'custom', // Custom CAD-designed module
-    blenderEnabled: true
+    geometry: 'custom' // Custom CAD-designed module
   },
   STOWAGE: {
     color: '#f97316',
     icon: '📦',
     size: { width: 2.5, height: 2.3, depth: 3.5 },
-    geometry: 'storage_rack', // Multi-compartment storage
-    blenderEnabled: true
+    geometry: 'storage_rack' // Multi-compartment storage
   },
   RECREATION: {
     color: '#84cc16',
     icon: '🎮',
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'lounge_pod', // Comfortable lounge area
-    blenderEnabled: true
+    geometry: 'lounge_pod' // Comfortable lounge area
   },
   WORKSTATION: {
     color: '#64748b',
     icon: '💻',
     size: { width: 2.2, height: 2.2, depth: 2.2 },
-    geometry: 'workstation', // Desk with equipment
-    blenderEnabled: true
+    geometry: 'workstation' // Desk with equipment
   },
   AIRLOCK: {
     color: '#0ea5e9',
     icon: '🚪',
     size: { width: 2.0, height: 2.3, depth: 2.2 },
-    geometry: 'airlock_chamber', // Pressurized airlock
-    blenderEnabled: true
+    geometry: 'airlock_chamber' // Pressurized airlock
   },
   GLOVEBOX: {
     color: '#8b5cf6',
     icon: '🧪',
     size: { width: 1.4, height: 2.0, depth: 1.8 },
-    geometry: 'science_station', // Laboratory workstation
-    blenderEnabled: true
+    geometry: 'science_station' // Laboratory workstation
   },
   TRASH_MGMT: {
     color: '#6b7280',
     icon: '🗑️',
     size: { width: 1.5, height: 2.0, depth: 2.0 },
-    geometry: 'compactor', // Waste compaction unit
-    blenderEnabled: true
+    geometry: 'compactor' // Waste compaction unit
   },
   COMMON_AREA: {
     color: '#f59e0b',
     icon: '👥',
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'community_space', // Open social area
-    blenderEnabled: true
+    geometry: 'community_space' // Open social area
   }
 };
 
@@ -151,178 +124,8 @@ function snap(n: number, step = 0.5) {
 }
 
 // Create realistic 3D geometries for different NASA modules
-function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }, blenderData?: any, cadData?: any): THREE.BufferGeometry | THREE.Group {
+function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }): THREE.BufferGeometry {
   const { w_m, h_m, l_m } = size;
-  
-  // Handle CAD modules with GLTF data
-  if (cadData?.isGLTF && cadData.gltfData?.scene) {
-    const group = new THREE.Group();
-    const gltfScene = cadData.gltfData.scene.clone();
-    
-    // Scale the GLTF object to fit the module size
-    const box = new THREE.Box3().setFromObject(gltfScene);
-    const currentSize = box.getSize(new THREE.Vector3());
-    const scale = Math.min(
-      w_m / currentSize.x,
-      h_m / currentSize.y,
-      l_m / currentSize.z
-    ) * 0.8; // Scale down a bit to fit nicely
-    
-    gltfScene.scale.setScalar(scale);
-    
-    // Center the object
-    const center = box.getCenter(new THREE.Vector3());
-    gltfScene.position.sub(center.multiplyScalar(scale));
-    
-    group.add(gltfScene);
-    return group;
-  }
-  
-  // Handle Blender modules with actual object data
-  if (geometryType === 'blender' && blenderData?.objects) {
-    const group = new THREE.Group();
-    
-    blenderData.objects.forEach((obj: any) => {
-      // Handle imported GLTF models within Blender objects
-      if (obj.type === 'model' && obj.modelUrl) {
-        // Load GLTF file asynchronously and add to group
-        const loader = new THREE.Group();
-        loader.userData = { isPlaceholder: true, modelUrl: obj.modelUrl };
-        
-        // Set placeholder position and scale
-        loader.position.set(
-          obj.position[0] * 0.2, 
-          obj.position[1] * 0.2, 
-          obj.position[2] * 0.2
-        );
-        loader.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2]);
-        loader.scale.set(
-          obj.scale[0] * 0.3, 
-          obj.scale[1] * 0.3, 
-          obj.scale[2] * 0.3
-        );
-        
-        group.add(loader);
-        
-        // Load the actual GLTF model
-        const loader_instance = new GLTFLoader();
-        loader_instance.load(
-          obj.modelUrl,
-          (gltf: any) => {
-            // Remove placeholder marker and add loaded scene
-            loader.userData.isPlaceholder = false;
-            loader.clear();
-            
-            // Clone the scene to avoid issues with multiple instances
-            const loadedScene = gltf.scene.clone();
-            loadedScene.traverse((child: any) => {
-              if (child instanceof THREE.Mesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-              }
-            });
-            
-            loader.add(loadedScene);
-          },
-          undefined,
-          (error: any) => {
-            console.error('Error loading GLTF in blender module:', error);
-            // Keep placeholder as fallback
-            const fallbackGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            const fallbackMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
-            const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
-            loader.add(fallbackMesh);
-          }
-        );
-        
-        return;
-      }
-      
-      // Handle regular primitive shapes
-      let objGeometry: THREE.BufferGeometry;
-      
-      switch (obj.type) {
-        case 'cube':
-          objGeometry = new THREE.BoxGeometry(
-            obj.scale[0] * 0.3, 
-            obj.scale[1] * 0.3, 
-            obj.scale[2] * 0.3
-          );
-          break;
-          
-        case 'sphere':
-          objGeometry = new THREE.SphereGeometry(
-            Math.max(...obj.scale) * 0.15, 
-            12, 
-            8
-          );
-          break;
-          
-        case 'cylinder':
-          objGeometry = new THREE.CylinderGeometry(
-            obj.scale[0] * 0.15, 
-            obj.scale[0] * 0.15, 
-            obj.scale[1] * 0.3, 
-            12
-          );
-          break;
-          
-        case 'cone':
-          objGeometry = new THREE.ConeGeometry(
-            obj.scale[0] * 0.15, 
-            obj.scale[1] * 0.3, 
-            12
-          );
-          break;
-          
-        case 'torus':
-          objGeometry = new THREE.TorusGeometry(
-            obj.scale[0] * 0.12, 
-            obj.scale[0] * 0.06, 
-            6, 
-            12
-          );
-          break;
-          
-        case 'plane':
-          objGeometry = new THREE.PlaneGeometry(
-            obj.scale[0] * 0.3, 
-            obj.scale[2] * 0.3
-          );
-          break;
-          
-        default:
-          objGeometry = new THREE.BoxGeometry(
-            obj.scale[0] * 0.3, 
-            obj.scale[1] * 0.3, 
-            obj.scale[2] * 0.3
-          );
-      }
-      
-      const objMaterial = new THREE.MeshLambertMaterial({ 
-        color: new THREE.Color(obj.color),
-        transparent: true,
-        opacity: 0.8
-      });
-      
-      const mesh = new THREE.Mesh(objGeometry, objMaterial);
-      
-      // Scale down positions to fit in habitat module bounds
-      mesh.position.set(
-        obj.position[0] * 0.2, 
-        obj.position[1] * 0.2, 
-        obj.position[2] * 0.2
-      );
-      mesh.rotation.set(obj.rotation[0], obj.rotation[1], obj.rotation[2]);
-      
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      
-      group.add(mesh);
-    });
-    
-    return group;
-  }
   
   switch (geometryType) {
     case 'sleep_pod':
@@ -423,7 +226,6 @@ function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Mat
   return materials;
 }
 
-// Enhanced module creation with Blender API integration
 // NASA-compatible object structure
 interface HabitatObject {
   id: string;
@@ -435,23 +237,6 @@ interface HabitatObject {
     w_m: number;
     l_m: number;
     h_m: number;
-  };
-  blenderData?: {
-    name: string;
-    description?: string;
-    objects: any[];
-    objectCount: number;
-    createdAt: string;
-  };
-  cadData?: {
-    name: string;
-    isGLTF: boolean;
-    gltfData?: {
-      scene: THREE.Object3D;
-      animations: any[];
-      url: string;
-    };
-    shapes?: any[];
   };
 }
 
@@ -624,14 +409,13 @@ function ThreeScene({
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const meshesRef = useRef(new Map<string, THREE.Object3D>());
+  const meshesRef = useRef(new Map<string, THREE.Mesh>());
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const isDraggingObjectRef = useRef(false);
   const dragOffsetRef = useRef(new THREE.Vector3());
   const animationIdRef = useRef<number>();
-  const transformControlsRef = useRef<TransformControls>();
 
   // Camera control state
   const cameraStateRef = useRef({
@@ -644,8 +428,6 @@ function ThreeScene({
     panSpeed: 0.02,
     rotateSpeed: 0.005
   });
-
-
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -701,332 +483,6 @@ function ThreeScene({
 
       // Add canvas to DOM
       mountRef.current.appendChild(renderer.domElement);
-
-      // Create Custom Gizmo System (since TransformControls aren't working)
-      const customGizmoRef = { current: null as THREE.Group | null };
-      
-      function createCustomGizmo() {
-        const gizmoGroup = new THREE.Group();
-        
-        // Create X-axis arrow (red)
-        const xArrow = createArrow(0xff0000, new THREE.Vector3(1, 0, 0));
-        xArrow.userData = { axis: 'x' };
-        gizmoGroup.add(xArrow);
-        
-        // Create Y-axis arrow (green)  
-        const yArrow = createArrow(0x00ff00, new THREE.Vector3(0, 1, 0));
-        yArrow.userData = { axis: 'y' };
-        gizmoGroup.add(yArrow);
-        
-        // Create Z-axis arrow (blue)
-        const zArrow = createArrow(0x0000ff, new THREE.Vector3(0, 0, 1));
-        zArrow.userData = { axis: 'z' };
-        gizmoGroup.add(zArrow);
-        
-        gizmoGroup.visible = false; // Start hidden
-        scene.add(gizmoGroup);
-        customGizmoRef.current = gizmoGroup;
-        
-        console.log('Custom gizmo system created');
-      }
-      
-      function createArrow(color: number, direction: THREE.Vector3) {
-        const group = new THREE.Group();
-        
-        // Create a more professional arrow design
-        const axisName = direction.x !== 0 ? 'X' : direction.y !== 0 ? 'Y' : 'Z';
-        
-        // Base line - thin line from center to arrow
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, 0, 0),
-          direction.clone().multiplyScalar(2.5)
-        ]);
-        const lineMaterial = new THREE.LineBasicMaterial({ 
-          color: color,
-          linewidth: 3,
-          transparent: true,
-          opacity: 0.8
-        });
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        
-        // Arrow shaft - sleeker design
-        const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.5);
-        const shaftMaterial = new THREE.MeshLambertMaterial({ 
-          color: color,
-          transparent: true,
-          opacity: 0.9
-        });
-        const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-        
-        // Arrow head - more prominent
-        const headGeometry = new THREE.ConeGeometry(0.25, 0.8);
-        const headMaterial = new THREE.MeshLambertMaterial({ 
-          color: color,
-          transparent: false,
-          opacity: 1.0
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        
-        // Position and orient based on axis
-        if (direction.x !== 0) {
-          // X-axis (red) - horizontal
-          shaft.position.set(direction.x * 1.5, 0, 0);
-          head.position.set(direction.x * 2.5, 0, 0);
-          shaft.rotateZ(-Math.PI / 2);
-          head.rotateZ(-Math.PI / 2);
-        } else if (direction.y !== 0) {
-          // Y-axis (green) - vertical
-          shaft.position.set(0, direction.y * 1.5, 0);
-          head.position.set(0, direction.y * 2.5, 0);
-          // No rotation needed for Y
-        } else if (direction.z !== 0) {
-          // Z-axis (blue) - depth
-          shaft.position.set(0, 0, direction.z * 1.5);
-          head.position.set(0, 0, direction.z * 2.5);
-          shaft.rotateX(Math.PI / 2);
-          head.rotateX(Math.PI / 2);
-        }
-        
-        // Add subtle glow effect
-        const glowGeometry = new THREE.SphereGeometry(0.15, 8, 6);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: color,
-          transparent: true,
-          opacity: 0.3
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.copy(head.position);
-        
-        // Make interactive
-        shaft.userData.interactive = true;
-        head.userData.interactive = true;
-        line.userData.interactive = true;
-        
-        group.add(line);
-        group.add(shaft);
-        group.add(head);
-        group.add(glow);
-        
-        // Store original materials for hover effects
-        group.userData.originalMaterials = {
-          shaft: shaftMaterial.clone(),
-          head: headMaterial.clone(),
-          line: lineMaterial.clone()
-        };
-        
-        return group;
-      }
-      
-      createCustomGizmo();
-      transformControlsRef.current = customGizmoRef.current as any;
-      
-      // Add gizmo interaction system
-      let isDraggingGizmo = false;
-      let dragStartPosition = new THREE.Vector3();
-      let draggedAxis = '';
-      let draggedObject: THREE.Object3D | null = null;
-      
-      function onGizmoMouseDown(event: MouseEvent) {
-        if (!customGizmoRef.current || !customGizmoRef.current.visible) return;
-        
-        const rect = renderer.domElement.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-        
-        // Check intersection with gizmo arrows
-        const gizmoChildren: THREE.Object3D[] = [];
-        customGizmoRef.current.traverse((child) => {
-          if (child.userData.axis) {
-            gizmoChildren.push(child);
-          }
-        });
-        
-        const intersects = raycaster.intersectObjects(gizmoChildren, true);
-        if (intersects.length > 0) {
-          event.preventDefault();
-          event.stopPropagation();
-          
-          const intersected = intersects[0].object;
-          let axis = '';
-          
-          // Find which axis was clicked
-          let current = intersected;
-          while (current && !current.userData.axis) {
-            current = current.parent!;
-          }
-          
-          if (current && current.userData.axis) {
-            axis = current.userData.axis;
-            isDraggingGizmo = true;
-            draggedAxis = axis;
-            dragStartPosition.copy(intersects[0].point);
-            
-            // Find the selected object
-            if (selectedId) {
-              draggedObject = meshesRef.current.get(selectedId) || scene.getObjectByName(selectedId) || null;
-              console.log('Dragged object found:', !!draggedObject, 'selectedId:', selectedId);
-              console.log('Available meshes:', Array.from(meshesRef.current.keys()));
-            }
-            
-            console.log(`Started dragging ${axis} axis, draggedObject:`, !!draggedObject);
-            
-            // Disable camera controls while dragging
-            cameraStateRef.current.isRotating = false;
-            cameraStateRef.current.isPanning = false;
-          }
-        }
-      }
-      
-      function onGizmoMouseMove(event: MouseEvent) {
-        if (!isDraggingGizmo || !draggedObject || !customGizmoRef.current) {
-          if (isDraggingGizmo) {
-            console.log('Mouse move blocked - isDraggingGizmo:', isDraggingGizmo, 'draggedObject:', !!draggedObject, 'customGizmoRef.current:', !!customGizmoRef.current);
-          }
-          return;
-        }
-        
-        console.log('Mouse move active, moving object:', draggedAxis);
-        
-        const rect = renderer.domElement.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-        
-        // Create a plane for dragging based on the axis
-        let planeNormal = new THREE.Vector3();
-        if (draggedAxis === 'x') {
-          planeNormal.set(0, 0, 1); // YZ plane
-        } else if (draggedAxis === 'y') {
-          planeNormal.set(1, 0, 0); // XZ plane  
-        } else if (draggedAxis === 'z') {
-          planeNormal.set(0, 1, 0); // XY plane
-        }
-        
-        const plane = new THREE.Plane(planeNormal, 0);
-        plane.setFromNormalAndCoplanarPoint(planeNormal, draggedObject.position);
-        
-        const intersection = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(plane, intersection)) {
-          const delta = intersection.clone().sub(dragStartPosition);
-          
-          // Apply movement only along the selected axis
-          const newPosition = draggedObject.position.clone();
-          console.log('Original position:', newPosition, 'delta:', delta);
-          
-          if (draggedAxis === 'x') {
-            newPosition.x += delta.x;
-          } else if (draggedAxis === 'y') {
-            newPosition.y += delta.y;
-          } else if (draggedAxis === 'z') {
-            newPosition.z += delta.z;
-          }
-          
-          console.log('New position after delta:', newPosition);
-          
-          // Apply basic ground collision - keep objects above Y=0
-          let finalPosition = newPosition.clone();
-          if (finalPosition.y < 0.5) {
-            finalPosition.y = 0.5; // Keep objects above ground
-          }
-          
-          // Update object position
-          draggedObject.position.copy(finalPosition);
-          
-          // Keep gizmos attached to the object
-          if (customGizmoRef.current) {
-            customGizmoRef.current.position.copy(finalPosition);
-          }
-          
-          // Force render to see the movement immediately
-          renderer.render(scene, camera);
-          
-          dragStartPosition.copy(intersection);
-        }
-      }
-      
-      function onGizmoMouseUp() {
-        if (isDraggingGizmo && draggedObject && selectedId) {
-          // Update state with the final position
-          const finalPosition = draggedObject.position;
-          setObjects(prev => 
-            prev.map(obj => 
-              obj.id === selectedId 
-                ? { ...obj, position: [finalPosition.x, finalPosition.y, finalPosition.z] }
-                : obj
-            )
-          );
-          
-          isDraggingGizmo = false;
-          draggedAxis = '';
-          draggedObject = null;
-          console.log('Stopped dragging gizmo, updated state');
-        }
-      }
-      
-      // Add hover detection for better UX
-      let hoveredArrow: THREE.Object3D | null = null;
-      
-      function onGizmoHover(event: MouseEvent) {
-        if (!customGizmoRef.current || !customGizmoRef.current.visible || isDraggingGizmo) return;
-        
-        const rect = renderer.domElement.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-        
-        // Check intersection with gizmo arrows
-        const gizmoChildren: THREE.Object3D[] = [];
-        customGizmoRef.current.traverse((child) => {
-          if (child.userData.interactive) {
-            gizmoChildren.push(child);
-          }
-        });
-        
-        const intersects = raycaster.intersectObjects(gizmoChildren, true);
-        
-        // Reset previous hover
-        if (hoveredArrow) {
-          hoveredArrow.traverse((child: any) => {
-            if (child.material && child.material.emissive) {
-              child.material.emissive.setHex(0x000000);
-            }
-          });
-          renderer.domElement.style.cursor = 'default';
-        }
-        
-        // Set new hover
-        if (intersects.length > 0) {
-          let current = intersects[0].object;
-          while (current && !current.userData.axis) {
-            current = current.parent!;
-          }
-          
-          if (current && current !== hoveredArrow) {
-            hoveredArrow = current;
-            current.traverse((child: any) => {
-              if (child.material && child.material.emissive) {
-                child.material.emissive.setHex(0x444444);
-              }
-            });
-            renderer.domElement.style.cursor = 'pointer';
-          }
-        } else {
-          hoveredArrow = null;
-        }
-      }
-      
-      // Add event listeners for gizmo interaction
-      renderer.domElement.addEventListener('mousedown', onGizmoMouseDown);
-      renderer.domElement.addEventListener('mousemove', onGizmoMouseMove);
-      renderer.domElement.addEventListener('mouseup', onGizmoMouseUp);
-      renderer.domElement.addEventListener('mousemove', onGizmoHover);
 
       // Lighting with dynamic colors
       const ambientLight = new THREE.AmbientLight(envConfig.ambientLight, 0.4);
@@ -1106,30 +562,6 @@ function ThreeScene({
 
       // Mouse events
       function handleMouseDown(event: MouseEvent) {
-        // Check if we're clicking on a gizmo first - if so, let the gizmo handler take over
-        if (customGizmoRef.current && customGizmoRef.current.visible) {
-          const rect = renderer.domElement.getBoundingClientRect();
-          const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-          const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-          
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-          
-          // Check intersection with gizmo arrows
-          const gizmoChildren: THREE.Object3D[] = [];
-          customGizmoRef.current.traverse((child) => {
-            if (child.userData.axis || child.userData.interactive) {
-              gizmoChildren.push(child);
-            }
-          });
-          
-          const gizmoIntersects = raycaster.intersectObjects(gizmoChildren, true);
-          if (gizmoIntersects.length > 0) {
-            // Let the gizmo handler deal with this - don't do object selection
-            return;
-          }
-        }
-        
         event.preventDefault();
         const state = cameraStateRef.current;
         
@@ -1150,37 +582,15 @@ function ThreeScene({
           raycasterRef.current.setFromCamera(mouseRef.current, camera);
           
           const meshes = Array.from(meshesRef.current.values());
-          const intersects = raycasterRef.current.intersectObjects(meshes, true); // Add recursive flag
+          const intersects = raycasterRef.current.intersectObjects(meshes);
           
           if (intersects.length > 0) {
-            // Find the object with userData.id (could be the intersected object or its parent)
-            let clickedObject = intersects[0].object;
-            let clickedId = clickedObject.userData.id;
-            
-            // If child mesh doesn't have id, walk up the hierarchy to find parent with id
-            while (!clickedId && clickedObject.parent) {
-              clickedObject = clickedObject.parent;
-              clickedId = clickedObject.userData.id;
-            }
-            
-            if (clickedId) {
-              setSelectedId(clickedId);
-              
-              // Only allow direct object dragging if gizmos are not visible
-              // When gizmos are visible, objects should only move via gizmo arrows
-              const gizmosVisible = customGizmoRef.current && customGizmoRef.current.visible;
-              if (!gizmosVisible) {
-                isDraggingObjectRef.current = true;
-                // Use the top-level object (with the id) for positioning
-                const selectedMesh = meshesRef.current.get(clickedId) || clickedObject;
-                const intersectionPoint = intersects[0].point;
-                dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
-              }
-            } else {
-              setSelectedId(null);
-              state.isRotating = true;
-              state.previousMouse = { x: event.clientX, y: event.clientY };
-            }
+            const clickedId = intersects[0].object.userData.id;
+            setSelectedId(clickedId);
+            isDraggingObjectRef.current = true;
+            const selectedMesh = intersects[0].object;
+            const intersectionPoint = intersects[0].point;
+            dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
           } else {
             setSelectedId(null);
             state.isRotating = true;
@@ -1213,10 +623,8 @@ function ThreeScene({
             const newPos = groundHit.add(dragOffsetRef.current);
             newPos.x = snap(newPos.x);
             newPos.z = snap(newPos.z);
-            
-            // Apply proper ground collision detection
-            const correctedPos = ensureAboveGround(newPos, getObjectHeight(selectedMesh));
-            selectedMesh.position.copy(correctedPos);
+            newPos.y = Math.max(1, newPos.y);
+            selectedMesh.position.copy(newPos);
           }
           return;
         }
@@ -1403,169 +811,40 @@ function ThreeScene({
     console.log('Updating objects in scene, count:', objects.length);
 
     // Remove existing meshes
-    meshesRef.current.forEach((object3D) => {
-      sceneRef.current!.remove(object3D);
-      
-      // Handle disposal for both individual meshes and groups
-      if (object3D instanceof THREE.Mesh) {
-        // Single mesh - dispose geometry and materials
-        object3D.geometry.dispose();
-        if (Array.isArray(object3D.material)) {
-          object3D.material.forEach(material => material.dispose());
-        } else {
-          object3D.material.dispose();
-        }
-      } else if (object3D instanceof THREE.Group) {
-        // Group - dispose all child meshes
-        object3D.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose();
-            if (Array.isArray(child.material)) {
-              child.material.forEach(material => material.dispose());
-            } else {
-              child.material.dispose();
-            }
-          }
-        });
+    meshesRef.current.forEach((mesh) => {
+      sceneRef.current!.remove(mesh);
+      mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(material => material.dispose());
+      } else {
+        mesh.material.dispose();
       }
     });
     meshesRef.current.clear();
 
     // Add new meshes
     objects.forEach((obj) => {
-      try {
-        const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
-        if (!moduleConfig) {
-          console.warn(`No module config found for type: ${obj.type}`);
-          return;
-        }
+      const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
+      if (!moduleConfig) return;
 
-        const isSelected = selectedId === obj.id;
-      
-      // Check if this is a Blender module with custom geometry
-      const geometryType = (obj as any).blenderData ? 'blender' : 
-                          (obj as any).cadData?.isGLTF ? 'gltf' : 
-                          moduleConfig.geometry;
-      const blenderData = (obj as any).blenderData;
-      const cadData = (obj as any).cadData;
+      const isSelected = selectedId === obj.id;
       
       // Create realistic geometry using our new system
-      const geometry = createModuleGeometry(geometryType, obj.size, blenderData, cadData);
-      
-      let object3D: THREE.Object3D;
-      
-      if (geometry instanceof THREE.Group) {
-        // Handle Blender modules that return a Group
-        object3D = geometry;
-        
-        try {
-          // Apply ground collision detection
-          const correctedPosition = ensureAboveGround(new THREE.Vector3(...obj.position), getObjectHeight(object3D));
-          object3D.position.copy(correctedPosition);
-          
-          // Update the object state if position was corrected
-          if (correctedPosition.y !== obj.position[1]) {
-            setObjects(prev => prev.map(prevObj => 
-              prevObj.id === obj.id 
-                ? { ...prevObj, position: [correctedPosition.x, correctedPosition.y, correctedPosition.z] }
-                : prevObj
-            ));
-          }
-        } catch (error) {
-          console.error(`Error applying ground collision to object ${obj.id}:`, error);
-          // Fallback: just set position without collision detection
-          object3D.position.set(...obj.position);
-        }
-        
-        object3D.rotation.set(...(obj.rotation || [0, 0, 0]));
-        object3D.scale.set(...(obj.scale || [1, 1, 1]));
-        object3D.userData = { id: obj.id, type: obj.type };
-        
-        // Ensure all child meshes also have the parent's userData for raycasting
-        object3D.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.userData = { id: obj.id, type: obj.type, isChildOfGroup: true };
-          }
-        });
-        
-        // Apply material color to all meshes in the group if selected
-        if (isSelected) {
-          object3D.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach(mat => mat.color.setHex(0xffff00));
-              } else {
-                child.material.color.setHex(0xffff00);
-              }
-            }
-          });
-        }
-      } else {
-        // Handle regular geometries that return BufferGeometry
-        const material = createModuleMaterial(moduleConfig, isSelected);
-        const mesh = new THREE.Mesh(geometry, material);
-        
-        // Simple ground collision - keep objects above Y=0.5
-        const position = [...obj.position];
-        if (position[1] < 0.5) {
-          position[1] = 0.5;
-        }
-        mesh.position.set(...position);
-        
-        mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
-        mesh.scale.set(...(obj.scale || [1, 1, 1]));
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.userData = { id: obj.id, type: obj.type };
-        object3D = mesh;
-      }
+      const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
+      const material = createModuleMaterial(moduleConfig, isSelected);
 
-        sceneRef.current!.add(object3D);
-        meshesRef.current.set(obj.id, object3D);
-        console.log('Stored mesh for object:', { id: obj.id, object3D });
-      } catch (error) {
-        console.error(`Error creating object ${obj.id} (type: ${obj.type}):`, error);
-      }
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(...obj.position);
+      mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
+      mesh.scale.set(...(obj.scale || [1, 1, 1]));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { id: obj.id, type: obj.type };
+
+      sceneRef.current!.add(mesh);
+      meshesRef.current.set(obj.id, mesh);
     });
-    
-    console.log('All meshes:', Array.from(meshesRef.current.keys()));
   }, [objects, selectedId, isInitialized]);
-
-  // Show/hide custom gizmos based on selected object
-  useEffect(() => {
-    const customGizmo = transformControlsRef.current as THREE.Group | null;
-    
-    if (!customGizmo) {
-      console.log('No custom gizmo available');
-      return;
-    }
-
-    if (selectedId) {
-      // Find the selected object in the scene
-      const selectedObject = meshesRef.current.get(selectedId);
-      console.log('Selected object from meshes:', { selectedObject: !!selectedObject, selectedId, meshesSize: meshesRef.current.size });
-      
-      if (selectedObject) {
-        // Position gizmo at selected object's location
-        customGizmo.position.copy(selectedObject.position);
-        customGizmo.visible = true;
-        
-        console.log('Custom gizmo positioned at:', selectedObject.position, 'for object:', selectedId);
-        
-        // Force render
-        if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-      } else {
-        console.log('Selected object not found in meshes');
-        customGizmo.visible = false;
-      }
-    } else {
-      // No object selected, hide gizmo
-      customGizmo.visible = false;
-      console.log('Custom gizmo hidden');
-    }
-  }, [selectedId]);
 
   return (
     <div ref={mountRef} className="w-full h-full bg-background">
@@ -1601,39 +880,6 @@ const saveToStorage = (key: string, value: any): void => {
 };
 
 export default function NASAHabitatBuilder3D() {
-  // Ground collision detection system - moved to component level
-  const ensureAboveGround = (position: THREE.Vector3, objectHeight: number = 1): THREE.Vector3 => {
-    try {
-      const groundLevel = 0; // Y=0 is our ground plane
-      const minY = groundLevel + (objectHeight / 2); // Objects should sit ON the ground, not sink into it
-      
-      if (position.y < minY) {
-        console.log(`Object below ground detected! Y: ${position.y} → corrected to: ${minY}`);
-        position.y = minY;
-      }
-      
-      return position;
-    } catch (error) {
-      console.error('Error in ensureAboveGround:', error);
-      return position;
-    }
-  };
-  
-  // Function to get object height from its bounding box
-  const getObjectHeight = (obj: THREE.Object3D): number => {
-    try {
-      const box = new THREE.Box3().setFromObject(obj);
-      const height = box.max.y - box.min.y;
-      return height > 0 ? height : 1; // Fallback to 1 meter if calculation fails
-    } catch (error) {
-      console.error('Error calculating object height:', error);
-      return 1; // Fallback height
-    }
-  };
-
-  // Habitat Design Context
-  const { updateObjects, updateScenario, updateHabitat } = useHabitatDesign();
-  
   // Storage keys for persistence
   const STORAGE_KEYS = {
     SCENARIO: 'nasa-habitat-scenario',
@@ -1643,8 +889,6 @@ export default function NASAHabitatBuilder3D() {
     VALIDATION_RESULTS: 'nasa-habitat-validation-results',
     ACTIVE_TAB: 'nasa-habitat-active-tab'
   };
-
-
 
   // NASA Mission Scenario
   const [scenario, setScenario] = useState(() => 
@@ -1691,7 +935,7 @@ export default function NASAHabitatBuilder3D() {
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'blender'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad' | 'analyses'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -1712,54 +956,14 @@ export default function NASAHabitatBuilder3D() {
   const [showCameraHelp, setShowCameraHelp] = useState(true);
   const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
   
-  // Blender API Integration states
-  const [useBlenderModels, setUseBlenderModels] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('useBlenderModels') || 'false');
-    } catch {
-      return false;
-    }
-  });
-  const [blenderApiStatus, setBlenderApiStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
-  const [loadingBlenderModules, setLoadingBlenderModules] = useState<Set<string>>(new Set());
-  
   // CAD Integration - Store imported CAD designs with persistence
   const [cadDesigns, setCadDesigns] = useState<Array<{
     id: string;
     name: string;
-    shapes?: any[];
+    shapes: any[];
     bounds: { width: number; height: number; depth: number };
     thumbnail?: string;
-    isGLTF?: boolean;
-    gltfData?: {
-      scene: THREE.Object3D;
-      animations: any[];
-      url: string;
-    };
   }>>(() => loadFromStorage(STORAGE_KEYS.CAD_DESIGNS, []));
-  
-  // Blender Lab modules - Store custom modules created in Blender Lab
-  const [blenderModules, setBlenderModules] = useState<Array<{
-    id: string;
-    name: string;
-    description: string;
-    type: string;
-    objects: any[];
-    createdAt: string;
-    objectCount: number;
-    bounds: { width: number; height: number; depth: number };
-  }>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('blenderModules') || '[]');
-    } catch {
-      return [];
-    }
-  });
-  
-  // Save blender modules to localStorage when changed
-  useEffect(() => {
-    localStorage.setItem('blenderModules', JSON.stringify(blenderModules));
-  }, [blenderModules]);
   
   const hoverPointRef = useRef<THREE.Vector3 | null>(null);
 
@@ -1798,21 +1002,6 @@ export default function NASAHabitatBuilder3D() {
     saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
   }, [cadDesigns]);
 
-  // Sync with habitat design context
-  useEffect(() => {
-    console.log('🔄 NASAHabitatBuilder3D - Syncing objects to context:', objects);
-    console.log('📊 NASAHabitatBuilder3D - Objects length:', objects.length);
-    updateObjects(objects);
-  }, [objects]);
-
-  useEffect(() => {
-    updateScenario(scenario);
-  }, [scenario]);
-
-  useEffect(() => {
-    updateHabitat(habitat);
-  }, [habitat]);
-
   // Close popups when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1826,15 +1015,10 @@ export default function NASAHabitatBuilder3D() {
     };
   }, []);
 
-
-
   // Keyboard controls for selected objects
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (!selectedId) {
-        console.log('Arrow key pressed but no object selected');
-        return;
-      }
+      if (!selectedId) return;
       
       // Skip if user is typing in an input field
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
@@ -1858,96 +1042,34 @@ export default function NASAHabitatBuilder3D() {
           const newObj = { ...obj };
 
           switch (event.code) {
-            // Movement controls - Camera-relative like Blender
+            // Movement controls
             case 'ArrowLeft':
-              // Move left relative to camera (Blender-style)
-              if (sceneRefs.current.camera) {
-                console.log('Using camera-relative movement for ArrowLeft');
-                const camera = sceneRefs.current.camera;
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
-                right.y = 0; // Keep movement horizontal
-                right.normalize();
-                const movement = right.multiplyScalar(-moveStep);
-                newObj.position = [
-                  obj.position[0] + movement.x,
-                  obj.position[1],
-                  obj.position[2] + movement.z
-                ];
-              } else {
-                console.log('Camera not available, using absolute movement');
-                // Fallback to absolute movement
-                newObj.position = [obj.position[0] - moveStep, obj.position[1], obj.position[2]];
-              }
+              newObj.position = [obj.position[0] - moveStep, obj.position[1], obj.position[2]];
               actionDescription = `Moving Left (${moveStep}m)`;
               break;
             case 'ArrowRight':
-              // Move right relative to camera (Blender-style)
-              if (sceneRefs.current.camera) {
-                const camera = sceneRefs.current.camera;
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                const right = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
-                right.y = 0; // Keep movement horizontal
-                right.normalize();
-                const movement = right.multiplyScalar(moveStep);
-                newObj.position = [
-                  obj.position[0] + movement.x,
-                  obj.position[1],
-                  obj.position[2] + movement.z
-                ];
-              } else {
-                // Fallback to absolute movement
-                newObj.position = [obj.position[0] + moveStep, obj.position[1], obj.position[2]];
-              }
+              newObj.position = [obj.position[0] + moveStep, obj.position[1], obj.position[2]];
               actionDescription = `Moving Right (${moveStep}m)`;
               break;
             case 'ArrowUp':
               if (event.ctrlKey) {
-                // Ctrl + Up: Move up (Y axis) - absolute up
+                // Ctrl + Up: Move up (Y axis)
                 newObj.position = [obj.position[0], obj.position[1] + moveStep, obj.position[2]];
                 actionDescription = `Moving Up (${moveStep}m)`;
               } else {
-                // Move forward relative to camera (Blender-style)
-                if (sceneRefs.current.camera) {
-                  const camera = sceneRefs.current.camera;
-                  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                  forward.y = 0; // Keep movement horizontal
-                  forward.normalize();
-                  const movement = forward.multiplyScalar(moveStep);
-                  newObj.position = [
-                    obj.position[0] + movement.x,
-                    obj.position[1],
-                    obj.position[2] + movement.z
-                  ];
-                } else {
-                  // Fallback to absolute movement
-                  newObj.position = [obj.position[0], obj.position[1], obj.position[2] - moveStep];
-                }
+                // Up: Move forward (Z axis)
+                newObj.position = [obj.position[0], obj.position[1], obj.position[2] - moveStep];
                 actionDescription = `Moving Forward (${moveStep}m)`;
               }
               break;
             case 'ArrowDown':
               if (event.ctrlKey) {
-                // Ctrl + Down: Move down (Y axis) - absolute down
+                // Ctrl + Down: Move down (Y axis)
                 newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
                 actionDescription = `Moving Down (${moveStep}m)`;
               } else {
-                // Move backward relative to camera (Blender-style)
-                if (sceneRefs.current.camera) {
-                  const camera = sceneRefs.current.camera;
-                  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                  forward.y = 0; // Keep movement horizontal
-                  forward.normalize();
-                  const movement = forward.multiplyScalar(-moveStep);
-                  newObj.position = [
-                    obj.position[0] + movement.x,
-                    obj.position[1],
-                    obj.position[2] + movement.z
-                  ];
-                } else {
-                  // Fallback to absolute movement
-                  newObj.position = [obj.position[0], obj.position[1], obj.position[2] + moveStep];
-                }
+                // Down: Move backward (Z axis)
+                newObj.position = [obj.position[0], obj.position[1], obj.position[2] + moveStep];
                 actionDescription = `Moving Backward (${moveStep}m)`;
               }
               break;
@@ -1966,18 +1088,10 @@ export default function NASAHabitatBuilder3D() {
               actionDescription = `Rotating Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
               break;
             case 'KeyR':
-              if (event.shiftKey || event.ctrlKey) {
-                // Shift/Ctrl + R: Rotate around X axis (pitch up) - existing functionality
-                const currentRotationX = obj.rotation?.[0] || 0;
-                newObj.rotation = [currentRotationX + rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
-                actionDescription = `Pitch Up (${Math.round(rotateStep * 180 / Math.PI)}°)`;
-              } else {
-                // R key alone: Switch to rotate mode (like Blender)
-                if (transformControlsRef.current) {
-                  transformControlsRef.current.setMode('rotate');
-                  actionDescription = 'Transform Mode: Rotate';
-                }
-              }
+              // R: Rotate around X axis (pitch up)
+              const currentRotationX = obj.rotation?.[0] || 0;
+              newObj.rotation = [currentRotationX + rotateStep, obj.rotation?.[1] || 0, obj.rotation?.[2] || 0];
+              actionDescription = `Pitch Up (${Math.round(rotateStep * 180 / Math.PI)}°)`;
               break;
             case 'KeyF':
               // F: Rotate around X axis (pitch down)
@@ -1993,46 +1107,22 @@ export default function NASAHabitatBuilder3D() {
               actionDescription = `Moving Up (${moveStep}m)`;
               break;
             case 'KeyS':
-              if (event.shiftKey || event.ctrlKey) {
-                // Shift/Ctrl + S: Move down (height) - existing functionality
-                newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
-                actionDescription = `Moving Down (${moveStep}m)`;
-              } else {
-                // S key alone: Switch to scale mode (like Blender)
-                if (transformControlsRef.current) {
-                  transformControlsRef.current.setMode('scale');
-                  actionDescription = 'Transform Mode: Scale';
-                }
-              }
+              // S: Move down (height)
+              newObj.position = [obj.position[0], obj.position[1] - moveStep, obj.position[2]];
+              actionDescription = `Moving Down (${moveStep}m)`;
               break;
 
             case 'KeyT':
-              if (event.shiftKey && obj.rotation) {
-                // Shift + T: Roll left around Z axis - existing functionality
-                const currentRotationZ = obj.rotation[2] || 0;
-                newObj.rotation = [obj.rotation[0] || 0, obj.rotation[1] || 0, currentRotationZ - rotateStep];
-                actionDescription = `Roll Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
-              } else {
-                // T key: Switch to translate mode (like Blender)
-                if (transformControlsRef.current) {
-                  transformControlsRef.current.setMode('translate');
-                  actionDescription = 'Transform Mode: Translate (Move)';
-                }
-              }
+              // T: Rotate around Z axis (roll left)
+              const currentRotationZ = obj.rotation?.[2] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ - rotateStep];
+              actionDescription = `Roll Left (${Math.round(rotateStep * 180 / Math.PI)}°)`;
               break;
             case 'KeyG':
-              if (event.shiftKey && obj.rotation) {
-                // Shift + G: Roll right around Z axis - existing functionality
-                const currentRotationZ2 = obj.rotation[2] || 0;
-                newObj.rotation = [obj.rotation[0] || 0, obj.rotation[1] || 0, currentRotationZ2 + rotateStep];
-                actionDescription = `Roll Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
-              } else {
-                // G key: Switch to translate mode (like Blender)
-                if (transformControlsRef.current) {
-                  transformControlsRef.current.setMode('translate');
-                  actionDescription = 'Transform Mode: Translate (Move)';
-                }
-              }
+              // G: Rotate around Z axis (roll right)
+              const currentRotationZ2 = obj.rotation?.[2] || 0;
+              newObj.rotation = [obj.rotation?.[0] || 0, obj.rotation?.[1] || 0, currentRotationZ2 + rotateStep];
+              actionDescription = `Roll Right (${Math.round(rotateStep * 180 / Math.PI)}°)`;
               break;
 
             // Scale controls
@@ -2080,7 +1170,6 @@ export default function NASAHabitatBuilder3D() {
                 actionDescription = 'Reset Scale';
               }
               break;
-
           }
 
           return newObj;
@@ -2300,100 +1389,21 @@ export default function NASAHabitatBuilder3D() {
   const handleNASAValidation = async () => {
     setLoading(prev => ({ ...prev, validation: true }));
     try {
-      // Convert current layout to validation API format
-      const modules = objects.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        level: (obj as any).level || 0, // Add level property if available
-        position: [obj.position[0], obj.position[1]] as [number, number],
-        size: {
-          w_m: obj.size.w_m,
-          l_m: obj.size.l_m,
-          h_m: obj.size.h_m
-        },
-        rotation_deg: obj.rotation ? obj.rotation[1] * (180 / Math.PI) : 0, // Convert from radians
-        equipment: []
-      }));
-
-      const scenario = {
-        crew_size: parseInt(localStorage.getItem('crew_size') || '4'),
-        mission_duration_days: parseInt(localStorage.getItem('mission_duration') || '365'),
-        destination: localStorage.getItem('destination') || 'MARS_SURFACE',
-        fairing: (habitat as any).fairing || FAIRINGS[0]
-      };
-
-      const habitatData = {
-        shape: habitat.shape || 'CYLINDER',
-        levels: habitat.levels || 1,
-        dimensions: habitat.dimensions || {
-          diameter_m: 6.5,
-          height_m: 12
-        },
-        pressurized_volume_m3: habitat.pressurized_volume_m3 || 400,
-        net_habitable_volume_m3: habitat.net_habitable_volume_m3 || 300
-      };
-
-      console.log('🚀 Sending to NASA API:', { modules, scenario, habitatData });
-      const validationPayload = HabitatValidationService.convertToValidationPayload(modules, scenario, habitatData);
-      console.log('📡 Full API Payload:', validationPayload);
-      
-      const results = await HabitatValidationService.validateHabitat(validationPayload);
-      
-      console.log('✅ NASA API Response:', results);
-      
-      // Add a flag to indicate this is real API data
-      const enhancedResults = {
-        ...results,
-        isRealAPIResult: true,
-        apiSource: 'NASA Habitat Validation API'
-      };
-      
-      setValidationResults(enhancedResults);
-      
-      // Store results for persistence
-      localStorage.setItem(STORAGE_KEYS.VALIDATION_RESULTS, JSON.stringify(enhancedResults));
-      
+      const layoutData = generateNASALayout();
+      console.log('Sending to NASA API:', layoutData);
+      const results = await postCheckLayout(layoutData);
+      setValidationResults(results);
     } catch (error) {
-      console.error('❌ NASA validation API failed:', error);
-      
-      // More realistic fallback validation that shows actual issues
-      const mockResults = {
-        results: [
-          {
-            rule: 'api.connection',
-            valid: false,
-            explanation: `NASA Validation API is currently unavailable: ${error.message || 'Network error'}`
-          },
-          {
-            rule: 'local.basic_check',
-            valid: objects.length > 0,
-            explanation: objects.length === 0 
-              ? 'No modules placed in habitat design' 
-              : `Local validation: Found ${objects.length} modules in design`
-          }
-        ],
-        suggestions: [
-          'NASA API validation is temporarily unavailable - this is a local fallback',
-          objects.length === 0 
-            ? 'Add habitat modules to your design before validation'
-            : 'Try validation again later when NASA API is available',
-          'For full NASA compliance validation, ensure the API endpoint is accessible'
-        ],
-        isRealAPIResult: false,
-        apiSource: 'Local Fallback (API Unavailable)',
-        apiError: error.message || 'Unknown error'
-      };
-      
-      setValidationResults(mockResults);
+      console.error('NASA validation failed:', error);
+      // Fallback to mock for demo
+      setValidationResults({
+        valid: objects.length > 0,
+        issues: objects.length === 0 ? [{ id: 'NO_MODULES', severity: 'error', message: 'No modules placed' }] : [],
+        suggestions: []
+      });
     }
     setLoading(prev => ({ ...prev, validation: false }));
   };
-
-  // Handle saving modules from Blender Lab
-  const handleSaveBlenderModule = useCallback((moduleData: any) => {
-    setBlenderModules(prev => [...prev, moduleData]);
-    console.log('Saved Blender module:', moduleData);
-  }, []);
 
   // Export NASA JSON
   const exportNASAJSON = () => {
@@ -2544,70 +1554,6 @@ export default function NASAHabitatBuilder3D() {
     alert('CAD designs imported! Check the module library for custom modules.');
   }, []);
 
-  // GLTF Import functionality
-  const importGLTFFile = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.gltf,.glb';
-    input.multiple = false;
-    
-    input.onchange = async (event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      try {
-        const loader = new GLTFLoader();
-        const url = URL.createObjectURL(file);
-        
-        // Load the GLTF file
-        loader.load(
-          url,
-          (gltf) => {
-            // Successfully loaded GLTF
-            const scene = gltf.scene;
-            
-            // Calculate bounding box
-            const box = new THREE.Box3().setFromObject(scene);
-            const size = box.getSize(new THREE.Vector3());
-            
-            // Create a CAD design entry from the GLTF
-            const gltfDesign = {
-              id: `gltf-${Date.now()}`,
-              name: file.name.replace(/\.(gltf|glb)$/i, ''),
-              gltfData: {
-                scene: scene.clone(),
-                animations: gltf.animations,
-                url: url
-              },
-              bounds: {
-                width: Math.max(0.5, size.x),
-                height: Math.max(0.5, size.y), 
-                depth: Math.max(0.5, size.z)
-              },
-              isGLTF: true
-            };
-            
-            setCadDesigns(prev => [...prev, gltfDesign]);
-            alert(`Successfully imported GLTF: ${file.name}`);
-          },
-          (progress) => {
-            console.log('Loading progress:', progress);
-          },
-          (error) => {
-            console.error('Error loading GLTF:', error);
-            alert(`Failed to load GLTF file: ${error.message || 'Unknown error'}`);
-            URL.revokeObjectURL(url);
-          }
-        );
-      } catch (error) {
-        console.error('GLTF import error:', error);
-        alert(`Error importing GLTF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    };
-    
-    input.click();
-  }, []);
-
   const exportToCAD = useCallback(() => {
     if (objects.length === 0) {
       alert('No modules to export to CAD. Add some modules first.');
@@ -2656,51 +1602,12 @@ export default function NASAHabitatBuilder3D() {
         w_m: cadDesign.bounds.width,
         h_m: cadDesign.bounds.height,
         l_m: cadDesign.bounds.depth
-      },
-      // Store CAD design data including GLTF if applicable
-      cadData: cadDesign.isGLTF ? {
-        name: cadDesign.name,
-        isGLTF: true,
-        gltfData: cadDesign.gltfData
-      } : {
-        name: cadDesign.name,
-        shapes: cadDesign.shapes,
-        isGLTF: false
       }
     };
     
     setObjects(prev => [...prev, newObject]);
     setSelectedId(id);
     alert(`Added custom CAD module: ${cadDesign.name}`);
-  }, [generateId]);
-
-  // Create module from Blender Lab
-  const createModuleFromBlender = useCallback((blenderModule: any) => {
-    const id = generateId('CUSTOM_CAD');
-    const newObject: HabitatObject = {
-      id,
-      type: 'CUSTOM_CAD' as any, // Reuse CUSTOM_CAD type for now
-      position: [0, blenderModule.bounds.height / 2, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      size: {
-        w_m: blenderModule.bounds.width,
-        h_m: blenderModule.bounds.height,
-        l_m: blenderModule.bounds.depth
-      },
-      // Store Blender module metadata
-      blenderData: {
-        name: blenderModule.name,
-        description: blenderModule.description,
-        objects: blenderModule.objects,
-        objectCount: blenderModule.objectCount,
-        createdAt: blenderModule.createdAt
-      }
-    };
-    
-    setObjects(prev => [...prev, newObject]);
-    setSelectedId(id);
-    alert(`Added Blender module: ${blenderModule.name} (${blenderModule.objectCount} objects)`);
   }, [generateId]);
 
   // Create a new empty design
@@ -2794,6 +1701,18 @@ export default function NASAHabitatBuilder3D() {
             </Button>
             
             <Button 
+              onClick={() => setActiveTab('cad')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'cad' 
+                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
+                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
+              } border`}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="font-medium">Laboratory CAD</span>
+            </Button>
+            
+            <Button 
               onClick={() => setActiveTab('collections')} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 activeTab === 'collections' 
@@ -2806,21 +1725,9 @@ export default function NASAHabitatBuilder3D() {
             </Button>
             
             <Button 
-              onClick={() => setActiveTab('blender')} 
+              onClick={() => setActiveTab('analyses')} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'blender' 
-                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
-                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
-              } border`}
-            >
-              <Settings className="w-4 h-4" />
-              <span className="font-medium">Blender Lab</span>
-            </Button>
-            
-            <Button 
-              onClick={() => window.location.href = '/analysis'} 
-              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                false // Never show as active since we're redirecting
+                activeTab === 'analyses' 
                   ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
                   : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
               } border`}
@@ -3016,8 +1923,8 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
-          {/* Blender Lab Modules - Custom 3D Models */}
-          {blenderModules.length > 0 && (
+          {/* Custom CAD Modules - Scrollable */}
+          {cadDesigns.length > 0 && (
             <div className="p-3 border-b border-border">
               <h3 
                 className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
@@ -3028,25 +1935,24 @@ export default function NASAHabitatBuilder3D() {
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
-                Blender Lab Modules ({blenderModules.length})
+                Custom CAD Modules
               </h3>
               {showCustomCad && (
               <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <div className="grid grid-cols-3 gap-2">
-                  {blenderModules.map((blenderModule) => (
+                  {cadDesigns.map((cadDesign) => (
                     <div
-                      key={blenderModule.id}
-                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-cyan-500/20 border border-border hover:border-cyan-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
-                      onClick={() => createModuleFromBlender(blenderModule)}
+                      key={cadDesign.id}
+                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-orange-500/20 border border-border hover:border-orange-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
+                      onClick={() => createModuleFromCAD(cadDesign)}
                     >
-                      <div className="w-8 h-8 bg-cyan-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
-                        🏗️
+                      <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
+                        <Settings className="w-4 h-4" />
                       </div>
                       <div className="text-center min-w-0 w-full">
-                        <div className="font-medium text-foreground text-xs truncate">{blenderModule.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{blenderModule.objectCount} objects</div>
+                        <div className="font-medium text-foreground text-xs truncate">{cadDesign.name}</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {blenderModule.bounds.width.toFixed(1)}×{blenderModule.bounds.height.toFixed(1)}×{blenderModule.bounds.depth.toFixed(1)}m
+                          {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
                         </div>
                       </div>
                     </div>
@@ -3089,38 +1995,13 @@ export default function NASAHabitatBuilder3D() {
                 Custom Shape Builder
               </Button>
               <Button 
-                onClick={() => setActiveTab('blender')} 
+                onClick={() => setActiveTab('cad')} 
                 className="w-full btn-space text-xs py-2 h-8"
                 size="sm"
               >
                 <Settings className="w-3 h-3 mr-1" />
-                Blender Laboratory
+                CAD Laboratory
               </Button>
-              
-              {/* Blender API Integration Toggle */}
-              <div className="pt-2 border-t border-border/50">
-                <label className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground flex items-center gap-2">
-                    🏗️ Blender Models
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${blenderApiStatus === 'connected' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                      {blenderApiStatus}
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={useBlenderModels}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setUseBlenderModels(enabled);
-                      localStorage.setItem('useBlenderModels', JSON.stringify(enabled));
-                    }}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                  />
-                </label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Generate detailed 3D models using your Blender API
-                </p>
-              </div>
             </div>
             )}
           </div>
@@ -3263,9 +2144,9 @@ export default function NASAHabitatBuilder3D() {
                 
                 <div className="text-gray-300 text-shadow-sm space-y-1">
                   <div className="text-[10px] font-medium text-yellow-200">Objects (when selected):</div>
-                  <div className="text-[10px]">• Arrow keys: Move relative to camera view (Blender-style)</div>
-                  <div className="text-[10px]">• W/S: Height • Q/E: Rotate • R/F/T/G: Pitch/Roll</div>
-                  <div className="text-[10px]">• Hold Shift: Faster movement • Ctrl+↑↓: Vertical</div>
+                  <div className="text-[10px]">• Arrow keys: Move X/Z • W/S: Height</div>
+                  <div className="text-[10px]">• Q/E: Rotate • R/F/T/G: Pitch/Roll</div>
+                  <div className="text-[10px]">• Hold Shift: Faster movement</div>
                 </div>
               </div>
             </div>
@@ -3279,17 +2160,17 @@ export default function NASAHabitatBuilder3D() {
               </div>
               <div className="text-[10px] text-gray-300 space-y-1 text-shadow-sm">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">←→</kbd> Left/Right</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">↑↓</kbd> Fwd/Back</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">←→</kbd> Move X</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">↑↓</kbd> Move Z</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">W/S</kbd> Height</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Q/E</kbd> Rotate Y</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">G</kbd> Move Mode</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">R</kbd> Rotate Mode</div>
-                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">S</kbd> Scale Mode</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">R/F</kbd> Pitch</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">T/G</kbd> Roll</div>
+                  <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Ctrl+±</kbd> Scale</div>
                   <div><kbd className="bg-gray-700/80 px-1 py-0.5 rounded text-[8px]">Shift</kbd> Fast</div>
                 </div>
                 <div className="text-[9px] text-gray-400 mt-2 border-t border-gray-600/50 pt-1">
-                  3D Gizmos: G/R/S keys switch transform modes • Ctrl+X: Reset rotation
+                  Ctrl+X: Reset rotation • Ctrl+C: Reset scale
                 </div>
               </div>
             </div>
@@ -3312,16 +2193,213 @@ export default function NASAHabitatBuilder3D() {
             onLoadDesign={handleLoadDesign}
             onSaveSuccess={() => setActiveTab('design')}
           />
-        ) : activeTab === 'blender' ? (
-          <BlenderLab 
-            onBackToDesign={() => setActiveTab('design')}
-            onSaveModule={handleSaveBlenderModule}
+        ) : activeTab === 'shapes' ? (
+          <ShapeBuilder />
+        ) : activeTab === 'cad' ? (
+          <CADShapeBuilder 
+            onBackToDesign={() => setActiveTab('design')} 
+            onSaveDesign={(design) => {
+              setCadDesigns(prev => [...prev, {
+                id: Date.now().toString(),
+                name: design.name,
+                shapes: design.shapes,
+                bounds: design.bounds
+              }]);
+              alert(`CAD design "${design.name}" is now available as a custom module!`);
+            }}
           />
+        ) : activeTab === 'analyses' ? (
+          <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-purple-200 mb-2 flex items-center gap-3">
+                  <Lightbulb className="w-8 h-8 text-purple-400" />
+                  Habitat Analysis Center
+                </h2>
+                <p className="text-gray-400">Comprehensive analysis and validation tools for your habitat design</p>
+              </div>
+              
+              {/* Real-time Metrics */}
+              <MetricsHeader 
+                nhv={habitat.net_habitable_volume_m3}
+                pressurizedVolume={habitat.pressurized_volume_m3}
+                utilization={Math.min(100, (objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0) / habitat.net_habitable_volume_m3) * 100)}
+                corridorStatus={objects.length > 0 ? 'success' : 'danger'}
+              />
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* NASA Validation Panel */}
+                <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-200">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      NASA Standards Validation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-gray-300 text-sm">Validate your habitat design against NASA standards and requirements.</p>
+                    <Button 
+                      onClick={handleNASAValidation} 
+                      disabled={loading.validation}
+                      className="w-full btn-nasa"
+                    >
+                      {loading.validation ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Validating Design...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Run NASA Validation
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Analysis Panel */}
+                <Card className="glass-morphism border-orange-500/30 shadow-xl glow-orange">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-200">
+                      <Lightbulb className="w-5 h-5 text-orange-400" />
+                      Quick Analysis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-gray-800/40 p-3 rounded-lg">
+                        <div className="text-gray-400">Total Modules</div>
+                        <div className="text-2xl font-bold text-orange-300">{objects.length}</div>
+                      </div>
+                      <div className="bg-gray-800/40 p-3 rounded-lg">
+                        <div className="text-gray-400">Total Volume</div>
+                        <div className="text-2xl font-bold text-orange-300">
+                          {objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0).toFixed(1)}m³
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Validation Results Display */}
+              {validationResults && (
+                <div className="mt-6">
+                  <Card className="glass-morphism border-green-500/30 shadow-xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-green-200">
+                        {validationResults.valid ? (
+                          <>
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                            Validation Passed
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-5 h-5 text-red-400" />
+                            Validation Issues Found
+                          </>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {validationResults.issues?.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="text-red-300 font-medium mb-2">Issues to Address:</h4>
+                          <ul className="space-y-1">
+                            {validationResults.issues.map((issue: any, index: number) => (
+                              <li key={index} className="text-red-200 text-sm flex items-center gap-2">
+                                <XCircle className="w-4 h-4" />
+                                {issue}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {validationResults.suggestions?.length > 0 && (
+                        <div>
+                          <h4 className="text-blue-300 font-medium mb-2">Suggestions:</h4>
+                          <ul className="space-y-1">
+                            {validationResults.suggestions.map((suggestion: any, index: number) => (
+                              <li key={index} className="text-blue-200 text-sm flex items-center gap-2">
+                                <Lightbulb className="w-4 h-4" />
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <ShapeBuilder />
         )}
       </div>
 
+      {/* NASA Validation Results */}
+      {validationResults && (
+        <div className="glass-morphism border-t border-purple-500/20 p-4 shadow-2xl">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Validation Results */}
+              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-200 text-shadow">
+                    {validationResults.valid ? (
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-400" />
+                    )}
+                    NASA Validation Results
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {validationResults.valid ? (
+                    <Alert className="border-green-500/40 bg-green-900/30 backdrop-blur-sm">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      <AlertDescription className="text-green-200 text-shadow-sm">
+                        Habitat layout meets NASA requirements and safety standards.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-2">
+                      {validationResults.issues?.map((issue: any, index: number) => (
+                        <Alert key={index} className="border-red-500/40 bg-red-900/30 backdrop-blur-sm">
+                          <XCircle className="h-4 w-4 text-red-400" />
+                          <AlertDescription className="text-red-200 text-shadow-sm">{issue.message}</AlertDescription>
+                        </Alert>
+                      ))}
+                    </div>
+                  )}
+                  {validationResults.suggestions?.map((suggestion: any, index: number) => (
+                    <Alert key={index} className="border-orange-500/40 bg-orange-900/30 backdrop-blur-sm">
+                      <Lightbulb className="h-4 w-4 text-orange-400" />
+                      <AlertDescription className="text-orange-200 text-shadow-sm">{suggestion.message}</AlertDescription>
+                    </Alert>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* NASA Layout JSON */}
+              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-blue">
+                <CardHeader>
+                  <CardTitle className="text-purple-300 text-shadow">NASA Layout Schema</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs bg-gray-900/60 backdrop-blur-sm p-4 rounded-lg overflow-x-auto text-gray-300 max-h-64 border border-gray-700/50">
+                    {JSON.stringify(generateNASALayout(), null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Context Menu */}
       {contextMenu.visible && (
         <div

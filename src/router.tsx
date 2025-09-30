@@ -2,8 +2,7 @@ import { createRouter, createRoute, createRootRoute } from '@tanstack/react-rout
 import { Layout } from './components/Layout'
 import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
 import DesignSystemDemo from './components/DesignSystemDemo'
-import { ValidationDemo } from './components/ValidationDemo'
-import { AnalysisPage } from './components/AnalysisPage'
+import CADStudio from './features/cad/CADStudio'
 
 // Root route
 const rootRoute = createRootRoute({
@@ -24,11 +23,28 @@ const designRoute = createRoute({
   component: NASAHabitatBuilder3D,
 })
 
-// Analysis route (comprehensive analysis tools with NASA validation)
+// Analysis route (placeholder for future analysis tools)
 const analysisRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/analysis',
-  component: AnalysisPage,
+  component: () => (
+    <div className="flex items-center justify-center h-full bg-background text-foreground">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-4">NASA Mission Analysis</h2>
+        <p className="text-muted-foreground mb-6">Advanced habitat layout analysis and optimization tools</p>
+        <div className="bg-card border border-border rounded-lg p-6">
+          <p className="text-card-foreground">Coming Soon: Mission analysis features including:</p>
+          <ul className="text-left text-muted-foreground mt-4 space-y-1">
+            <li>• Volume utilization efficiency</li>
+            <li>• Crew workflow optimization</li>
+            <li>• Emergency egress path analysis</li>
+            <li>• Resource allocation modeling</li>
+            <li>• Life support system integration</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  ),
 })
 
 // Collections route (saved layouts)
@@ -62,11 +78,17 @@ const demoRoute = createRoute({
   component: DesignSystemDemo,
 })
 
-// Validation Demo route
-const validationRoute = createRoute({
+// CAD Studio route
+const cadRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/validation',
-  component: ValidationDemo,
+  path: '/cad',
+  component: () => (
+    <div className="h-screen bg-background">
+      <CADStudio onSaveModule={(module: any) => {
+        console.log('CAD module saved:', module);
+      }} />
+    </div>
+  ),
 })
 
 // Create the route tree
@@ -76,7 +98,7 @@ const routeTree = rootRoute.addChildren([
   analysisRoute,
   collectionsRoute,
   demoRoute,
-  validationRoute,
+  cadRoute,
 ])
 
 // Create router
