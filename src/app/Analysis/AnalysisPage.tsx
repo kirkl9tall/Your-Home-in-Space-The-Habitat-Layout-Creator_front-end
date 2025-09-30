@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, FileText, Play, RotateCcw, Copy, CheckCircle, Box, Users, Calendar, MapPin, Ruler, RefreshCw, Info } from "lucide-react";
 import AnalysisResults, { AnalyzerResult } from "@/ui/AnalysisResults";
+import CollectionSelector from "@/ui/CollectionSelector";
 import { postAnalyzeRaw } from "@/api/analyzer";
+import { initDatabase } from "@/lib/database";
 
 const SAMPLE_PAYLOAD = `{
   "scenario": {
@@ -194,18 +196,30 @@ export default function AnalysisPage() {
   const [copied, setCopied] = useState(false);
   const [currentDesign, setCurrentDesign] = useState<any>(null);
 
-  // Load current design on component mount
+  // Load current design and initialize database on component mount
   useEffect(() => {
-    const loadCurrentDesign = () => {
+    const initialize = async () => {
+      // Initialize database for collections
+      try {
+        await initDatabase();
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+      }
+      
+      // Load current design
       const layout = generateNASALayoutFromStorage();
       setCurrentDesign(layout);
       setEditor(JSON.stringify(layout, null, 2));
     };
     
-    loadCurrentDesign();
+    initialize();
     
     // Listen for storage changes to update when design is modified
-    const handleStorageChange = () => loadCurrentDesign();
+    const handleStorageChange = () => {
+      const layout = generateNASALayoutFromStorage();
+      setCurrentDesign(layout);
+      setEditor(JSON.stringify(layout, null, 2));
+    };
     window.addEventListener('storage', handleStorageChange);
     
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -264,6 +278,14 @@ export default function AnalysisPage() {
 
         {/* Main Content */}
         <div className="space-y-6">
+          {/* Collection Selector Section */}
+          <CollectionSelector 
+            onDesignSelected={(payload, designData) => {
+              setEditor(payload);
+              setCurrentDesign(designData);
+            }} 
+          />
+          
           {/* No Design Message */}
           {!currentDesign?.modules?.length && (
             <Card className="glass-morphism border-yellow-500/30 shadow-2xl">

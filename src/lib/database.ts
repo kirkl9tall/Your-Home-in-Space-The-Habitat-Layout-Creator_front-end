@@ -38,19 +38,41 @@ export interface CustomShape {
 
 // Database connection
 let db: IDBDatabase | null = null;
+let initPromise: Promise<void> | null = null;
 
 // Initialize IndexedDB
 export async function initDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  // If already initialized, return immediately
+  if (db) {
+    console.log('Database already initialized');
+    return Promise.resolve();
+  }
+  
+  // If initialization is in progress, wait for it
+  if (initPromise) {
+    console.log('Database initialization in progress, waiting...');
+    return initPromise;
+  }
+  
+  // Start new initialization
+  console.log('Starting database initialization...');
+  initPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      console.error('Database initialization failed:', request.error);
+      initPromise = null;
+      reject(request.error);
+    };
+    
     request.onsuccess = () => {
       db = request.result;
+      console.log('Database initialized successfully');
       resolve();
     };
     
     request.onupgradeneeded = () => {
+      console.log('Database upgrade needed, creating stores...');
       const database = request.result;
       
       // Create designs store
@@ -59,6 +81,7 @@ export async function initDatabase(): Promise<void> {
         designsStore.createIndex('name', 'name', { unique: false });
         designsStore.createIndex('createdAt', 'createdAt', { unique: false });
         designsStore.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+        console.log('Designs store created');
       }
       
       // Create custom shapes store
@@ -66,9 +89,12 @@ export async function initDatabase(): Promise<void> {
         const shapesStore = database.createObjectStore(SHAPES_STORE, { keyPath: 'id' });
         shapesStore.createIndex('name', 'name', { unique: false });
         shapesStore.createIndex('category', 'category', { unique: false });
+        console.log('Shapes store created');
       }
     };
   });
+  
+  return initPromise;
 }
 
 // Design management functions
@@ -141,20 +167,38 @@ export async function loadDesign(id: string): Promise<SavedDesign | null> {
 }
 
 export async function listDesigns(): Promise<SavedDesign[]> {
-  if (!db) throw new Error('Database not initialized');
+  if (!db) {
+    console.error('Database not initialized when trying to list designs');
+    throw new Error('Database not initialized');
+  }
   
   return new Promise((resolve, reject) => {
-    const transaction = db!.transaction([DESIGNS_STORE], 'readonly');
-    const store = transaction.objectStore(DESIGNS_STORE);
-    const request = store.getAll();
-    
-    request.onsuccess = () => {
-      const designs = request.result;
-      // Sort by updatedAt descending
-      designs.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-      resolve(designs);
-    };
-    request.onerror = () => reject(request.error);
+    try {
+      const transaction = db!.transaction([DESIGNS_STORE], 'readonly');
+      const store = transaction.objectStore(DESIGNS_STORE);
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        const designs = request.result || [];
+        console.log(`Found ${designs.length} designs in database`);
+        // Sort by updatedAt descending
+        designs.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        resolve(designs);
+      };
+      
+      request.onerror = () => {
+        console.error('Error reading designs from database:', request.error);
+        reject(request.error);
+      };
+      
+      transaction.onerror = () => {
+        console.error('Transaction error when reading designs:', transaction.error);
+        reject(transaction.error);
+      };
+    } catch (error) {
+      console.error('Exception in listDesigns:', error);
+      reject(error);
+    }
   });
 }
 
