@@ -10,6 +10,7 @@ import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, C
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import { postCheckLayout, postSuggestLayout } from '@/lib/api';
+import { postAnalyzeRaw } from '@/api/analyzer';
 import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
 
 // Database and collections
@@ -18,6 +19,7 @@ import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
 import CADShapeBuilder from './CADShapeBuilder';
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
+import AnalysisResults from '@/ui/AnalysisResults';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
 const MODULE_TYPES_3D = {
@@ -1231,35 +1233,50 @@ export default function NASAHabitatBuilder3D() {
 
   // Convert to NASA Layout format
   const generateNASALayout = useCallback((): Layout => {
+    // Use the same robust approach as the analysis page with proper defaults
+    const safeScenario = {
+      crew_size: scenario?.crew_size || 4,
+      mission_duration_days: scenario?.mission_duration_days || 365,
+      destination: scenario?.destination || "MARS_SURFACE",
+      fairing: {
+        name: scenario?.fairing?.name || "Falcon 9",
+        inner_diameter_m: scenario?.fairing?.inner_diameter_m || 5.2,
+        inner_height_m: scenario?.fairing?.inner_height_m || 13.1,
+        shape: (scenario?.fairing?.shape === "CYLINDRICAL" ? "CYLINDER" : "CONE") as "CYLINDER" | "CONE"
+      }
+    };
+    
+    const safeHabitat = {
+      shape: habitat?.shape || "CYLINDER",
+      levels: habitat?.levels || 1,
+      dimensions: habitat?.dimensions || {
+        diameter_m: 6.5,
+        height_m: 12
+      },
+      pressurized_volume_m3: habitat?.pressurized_volume_m3 || 400,
+      net_habitable_volume_m3: habitat?.net_habitable_volume_m3 || 300
+    };
+
+    // Convert objects to NASA modules format with proper fallbacks
+    const modules = objects.map((obj, index) => ({
+      id: obj.id || `module-${index}`,
+      type: obj.type || "CREW_SLEEP",
+      level: 0,
+      position: [obj.position?.[0] || 0, obj.position?.[2] || 0],
+      size: {
+        w_m: obj.size?.w_m || obj.size?.width || 2,
+        l_m: obj.size?.l_m || obj.size?.depth || 2,
+        h_m: obj.size?.h_m || obj.size?.height || 2.1
+      },
+      rotation_deg: obj.rotation?.y ? (obj.rotation.y * 180 / Math.PI) : 0,
+      crew_capacity: obj.type === "CREW_SLEEP" ? 1 : undefined,
+      equipment: []
+    }));
+
     return {
-      scenario: {
-        crew_size: scenario.crew_size,
-        mission_duration_days: scenario.mission_duration_days,
-        destination: scenario.destination,
-        fairing: {
-          name: scenario.fairing.name,
-          inner_diameter_m: scenario.fairing.inner_diameter_m,
-          inner_height_m: scenario.fairing.inner_height_m,
-          shape: scenario.fairing.shape === "CYLINDRICAL" ? "CYLINDER" : "CONE"
-        }
-      },
-      habitat: {
-        shape: habitat.shape,
-        levels: habitat.levels,
-        dimensions: habitat.dimensions,
-        pressurized_volume_m3: habitat.pressurized_volume_m3,
-        net_habitable_volume_m3: habitat.net_habitable_volume_m3
-      },
-      modules: objects.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        level: 0, // Default level for now
-        position: [obj.position[0], obj.position[2]], // Convert 3D to 2D grid
-        size: obj.size,
-        rotation_deg: 0, // Convert from radians if needed
-        crew_capacity: obj.type === 'CREW_SLEEP' ? 1 : undefined,
-        equipment: []
-      })),
+      scenario: safeScenario,
+      habitat: safeHabitat,
+      modules,
       version: "1.0.0"
     };
   }, [scenario, habitat, objects]);
@@ -1385,21 +1402,34 @@ export default function NASAHabitatBuilder3D() {
     }
   }
 
-  // NASA Validation using real API
+  // NASA Validation using real API (exact same approach as analysis page)
   const handleNASAValidation = async () => {
     setLoading(prev => ({ ...prev, validation: true }));
     try {
       const layoutData = generateNASALayout();
-      console.log('Sending to NASA API:', layoutData);
-      const results = await postCheckLayout(layoutData);
-      setValidationResults(results);
-    } catch (error) {
+      console.log('🚀 Sending to NASA API via postAnalyzeRaw:', layoutData);
+      
+      // Use the same postAnalyzeRaw function as the analysis page
+      const result = await postAnalyzeRaw(layoutData);
+      console.log('🎉 NASA Analysis Result from postAnalyzeRaw:', result);
+      
+      setValidationResults(result);
+      
+    } catch (error: any) {
       console.error('NASA validation failed:', error);
-      // Fallback to mock for demo
+      
+      // Set error result in same format as analysis page
       setValidationResults({
-        valid: objects.length > 0,
-        issues: objects.length === 0 ? [{ id: 'NO_MODULES', severity: 'error', message: 'No modules placed' }] : [],
-        suggestions: []
+        results: [{
+          rule: 'system.api_connection',
+          valid: false,
+          explanation: `NASA API connection failed: ${error.message}`
+        }],
+        suggestions: [
+          'Check your internet connection',
+          'The NASA API might be temporarily unavailable',
+          'Try refreshing the page and running validation again'
+        ]
       });
     }
     setLoading(prev => ({ ...prev, validation: false }));
@@ -2283,54 +2313,13 @@ export default function NASAHabitatBuilder3D() {
                 </Card>
               </div>
 
-              {/* Validation Results Display */}
+              {/* Professional NASA Analysis Results */}
               {validationResults && (
                 <div className="mt-6">
-                  <Card className="glass-morphism border-green-500/30 shadow-xl">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-green-200">
-                        {validationResults.valid ? (
-                          <>
-                            <CheckCircle className="w-5 h-5 text-green-400" />
-                            Validation Passed
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-5 h-5 text-red-400" />
-                            Validation Issues Found
-                          </>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {validationResults.issues?.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-red-300 font-medium mb-2">Issues to Address:</h4>
-                          <ul className="space-y-1">
-                            {validationResults.issues.map((issue: any, index: number) => (
-                              <li key={index} className="text-red-200 text-sm flex items-center gap-2">
-                                <XCircle className="w-4 h-4" />
-                                {issue}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {validationResults.suggestions?.length > 0 && (
-                        <div>
-                          <h4 className="text-blue-300 font-medium mb-2">Suggestions:</h4>
-                          <ul className="space-y-1">
-                            {validationResults.suggestions.map((suggestion: any, index: number) => (
-                              <li key={index} className="text-blue-200 text-sm flex items-center gap-2">
-                                <Lightbulb className="w-4 h-4" />
-                                {suggestion}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <AnalysisResults 
+                    data={validationResults} 
+                    isLoading={loading.validation} 
+                  />
                 </div>
               )}
             </div>
@@ -2340,66 +2329,6 @@ export default function NASAHabitatBuilder3D() {
         )}
       </div>
 
-      {/* NASA Validation Results */}
-      {validationResults && (
-        <div className="glass-morphism border-t border-purple-500/20 p-4 shadow-2xl">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Validation Results */}
-              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-purple">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-purple-200 text-shadow">
-                    {validationResults.valid ? (
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-400" />
-                    )}
-                    NASA Validation Results
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {validationResults.valid ? (
-                    <Alert className="border-green-500/40 bg-green-900/30 backdrop-blur-sm">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <AlertDescription className="text-green-200 text-shadow-sm">
-                        Habitat layout meets NASA requirements and safety standards.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-2">
-                      {validationResults.issues?.map((issue: any, index: number) => (
-                        <Alert key={index} className="border-red-500/40 bg-red-900/30 backdrop-blur-sm">
-                          <XCircle className="h-4 w-4 text-red-400" />
-                          <AlertDescription className="text-red-200 text-shadow-sm">{issue.message}</AlertDescription>
-                        </Alert>
-                      ))}
-                    </div>
-                  )}
-                  {validationResults.suggestions?.map((suggestion: any, index: number) => (
-                    <Alert key={index} className="border-orange-500/40 bg-orange-900/30 backdrop-blur-sm">
-                      <Lightbulb className="h-4 w-4 text-orange-400" />
-                      <AlertDescription className="text-orange-200 text-shadow-sm">{suggestion.message}</AlertDescription>
-                    </Alert>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* NASA Layout JSON */}
-              <Card className="glass-morphism border-purple-500/30 shadow-xl glow-blue">
-                <CardHeader>
-                  <CardTitle className="text-purple-300 text-shadow">NASA Layout Schema</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-xs bg-gray-900/60 backdrop-blur-sm p-4 rounded-lg overflow-x-auto text-gray-300 max-h-64 border border-gray-700/50">
-                    {JSON.stringify(generateNASALayout(), null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Context Menu */}
       {contextMenu.visible && (
         <div
