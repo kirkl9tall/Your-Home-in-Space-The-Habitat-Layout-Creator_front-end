@@ -1,0 +1,26 @@
+:root {
+  --brand: #0b3d91; /* NASA blue */
+  --brand-2: #1b5bd6;
+  --accent: #fc3d21; /* NASA red */
+  --surface-0: #0b0f16;
+  --surface-1: rgba(17, 24, 39, 0.6);
+  --border-weak: rgba(255,255,255,0.06);
+  --glow: 0 0 0 1px rgba(11,61,145,0.14), 0 0 40px rgba(27,91,214,0.10);
+}
+
+/* Optional subtle starfield/grid background for app root */
+html, body, #root {
+  background:
+    radial-gradient(1200px 600px at 80% -20%, rgba(27,91,214,0.08), transparent 60%),
+    radial-gradient(900px 500px at 0% 120%, rgba(252,61,33,0.06), transparent 60%),
+    linear-gradient(180deg, #0b0f16, #0b0f16);
+}
+
+/* Pretty monospace editor look */
+.code-surface {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--border-weak);
+  box-shadow: var(--glow);
+  backdrop-filter: blur(6px);
+  font-feature-settings: "calt" 1;
+}

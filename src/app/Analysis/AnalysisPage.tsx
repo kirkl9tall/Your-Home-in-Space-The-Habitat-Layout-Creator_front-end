@@ -246,17 +246,17 @@ export default function AnalysisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header - NASA Theme */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">NASA Habitat Analysis</h1>
-          <p className="text-blue-200">Advanced mission validation and optimization system</p>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-wide">NASA Habitat Analysis</h1>
+          <p className="text-[var(--brand-2)]">Advanced mission validation and optimization system</p>
           <div className="flex items-center gap-4 mt-4">
-            <Badge variant="outline" className="text-green-400 border-green-400">
+            <Badge variant="outline" className="text-green-400 border-green-400/30 bg-green-400/10">
               API Connected
             </Badge>
-            <Badge variant="outline" className="text-blue-400 border-blue-400">
+            <Badge variant="outline" className="text-[var(--brand)] border-[var(--brand)]/30 bg-[var(--brand)]/10">
               Real-time Analysis
             </Badge>
           </div>
@@ -284,36 +284,36 @@ export default function AnalysisPage() {
             </Card>
           )}
 
-          {/* Current Design Overview */}
+          {/* Current Design Overview - NASA Theme */}
           {currentDesign?.modules?.length > 0 && (
-            <Card className="glass-morphism border-purple-500/30 shadow-2xl">
+            <Card className="bg-[var(--surface-1)] border border-[var(--border-weak)] shadow-[var(--glow)] backdrop-blur rounded-xl">
               <CardHeader>
-                <CardTitle className="text-purple-200 flex items-center gap-2">
+                <CardTitle className="text-[var(--brand-2)] flex items-center gap-2">
                   <Info className="w-5 h-5" />
                   Current Habitat Design
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
-                    <Users className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <div className="text-lg font-bold text-purple-300">{currentDesign.scenario?.crew_size || 0}</div>
-                    <div className="text-xs text-purple-400">Crew Size</div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-weak)] rounded-xl p-3 text-center backdrop-blur shadow-[var(--glow)]">
+                    <Users className="w-6 h-6 text-[var(--brand)] mx-auto mb-2" />
+                    <div className="text-lg font-bold text-[var(--brand-2)]">{currentDesign.scenario?.crew_size || 0}</div>
+                    <div className="text-xs text-[var(--brand)]/80">Crew Size</div>
                   </div>
-                  <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
-                    <Box className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <div className="text-lg font-bold text-purple-300">{currentDesign.modules?.length || 0}</div>
-                    <div className="text-xs text-purple-400">Modules</div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-weak)] rounded-xl p-3 text-center backdrop-blur shadow-[var(--glow)]">
+                    <Box className="w-6 h-6 text-[var(--brand)] mx-auto mb-2" />
+                    <div className="text-lg font-bold text-[var(--brand-2)]">{currentDesign.modules?.length || 0}</div>
+                    <div className="text-xs text-[var(--brand)]/80">Modules</div>
                   </div>
-                  <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
-                    <Calendar className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <div className="text-lg font-bold text-purple-300">{currentDesign.scenario?.mission_duration_days || 0}</div>
-                    <div className="text-xs text-purple-400">Mission Days</div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-weak)] rounded-xl p-3 text-center backdrop-blur shadow-[var(--glow)]">
+                    <Calendar className="w-6 h-6 text-[var(--brand)] mx-auto mb-2" />
+                    <div className="text-lg font-bold text-[var(--brand-2)]">{currentDesign.scenario?.mission_duration_days || 0}</div>
+                    <div className="text-xs text-[var(--brand)]/80">Mission Days</div>
                   </div>
-                  <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
-                    <MapPin className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <div className="text-lg font-bold text-purple-300">{currentDesign.scenario?.destination || "Unknown"}</div>
-                    <div className="text-xs text-purple-400">Destination</div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-weak)] rounded-xl p-3 text-center backdrop-blur shadow-[var(--glow)]">
+                    <MapPin className="w-6 h-6 text-[var(--brand)] mx-auto mb-2" />
+                    <div className="text-lg font-bold text-[var(--brand-2)]">{currentDesign.scenario?.destination || "Unknown"}</div>
+                    <div className="text-xs text-[var(--brand)]/80">Destination</div>
                   </div>
                 </div>
                 
@@ -342,8 +342,8 @@ export default function AnalysisPage() {
           <Card className="glass-morphism border-blue-500/30 shadow-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-blue-200 flex items-center gap-2">
-                  <Play className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Play className="w-5 h-5 text-[var(--nasa-accent)]" />
                   Mission Analysis Control
                 </CardTitle>
                 <div className="flex gap-2">
@@ -351,7 +351,7 @@ export default function AnalysisPage() {
                     variant="outline" 
                     size="sm"
                     onClick={loadCurrentDesignData}
-                    className="border-green-500/30 text-green-200 hover:bg-green-500/10"
+                    className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-400/50"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Load Current Design
@@ -360,7 +360,7 @@ export default function AnalysisPage() {
                     variant="outline" 
                     size="sm"
                     onClick={() => setShowEditor(!showEditor)}
-                    className="border-blue-500/30 text-blue-200 hover:bg-blue-500/10"
+                    className="border-[var(--nasa-blue)]/40 text-white hover:bg-[var(--nasa-blue)]/20 hover:border-[var(--nasa-blue)]/60"
                   >
                     <FileText className="w-4 h-4 mr-2" />
                     {showEditor ? 'Hide' : 'Show'} Payload
@@ -369,7 +369,7 @@ export default function AnalysisPage() {
                   <Button 
                     onClick={onSubmit} 
                     disabled={busy}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-[var(--nasa-accent)] hover:bg-[var(--nasa-accent)]/80 text-white border-[var(--nasa-accent)]/60 shadow-lg shadow-[var(--nasa-accent)]/20"
                   >
                     <Play className="w-4 h-4 mr-2" />
                     {busy ? "Analyzing..." : "Run Analysis"}
@@ -381,13 +381,13 @@ export default function AnalysisPage() {
               {showEditor && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-blue-200">JSON Payload Editor</h3>
+                    <h3 className="text-sm font-medium text-white">JSON Payload Editor</h3>
                     <div className="flex gap-2">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={copyPayload}
-                        className="border-blue-500/30 text-blue-200 hover:bg-blue-500/10"
+                        className="border-[var(--nasa-blue)]/40 text-white hover:bg-[var(--nasa-blue)]/20 hover:border-[var(--nasa-blue)]/60"
                       >
                         {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </Button>
@@ -396,7 +396,7 @@ export default function AnalysisPage() {
                         size="sm"
                         onClick={() => setEditor(SAMPLE_PAYLOAD)} 
                         disabled={busy}
-                        className="border-blue-500/30 text-blue-200 hover:bg-blue-500/10"
+                        className="border-[var(--nasa-blue)]/40 text-white hover:bg-[var(--nasa-blue)]/20 hover:border-[var(--nasa-blue)]/60 disabled:opacity-50"
                       >
                         <RotateCcw className="w-4 h-4 mr-2" />
                         Reset
@@ -420,11 +420,11 @@ export default function AnalysisPage() {
           </Card>
 
           {/* Results Section */}
-          <Card className="glass-morphism border-green-500/30 shadow-2xl">
+          <Card className="glass-morphism border-[var(--nasa-blue)]/30 shadow-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-green-200 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
                   Analysis Results
                 </CardTitle>
                 {result && (
@@ -432,7 +432,7 @@ export default function AnalysisPage() {
                     size="sm" 
                     variant="outline"
                     onClick={copyResult}
-                    className="border-green-500/30 text-green-200 hover:bg-green-500/10"
+                    className="border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-400/50"
                   >
                     {copied ? <CheckCircle className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                     Copy Results
