@@ -2499,12 +2499,12 @@ export default function NASAHabitatBuilder3D() {
         </div>
       </header>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex h-[calc(100vh-80px)]">
         {activeTab === 'design' ? (
-          <div className="flex flex-1 relative">
+          <div className="flex flex-1 relative h-full">
             {/* NASA Mission Control Sidebar */}
             {showSidebar && (
-            <aside className="w-80 nav-container shadow-2xl border-r border-border flex flex-col overflow-y-auto">
+            <aside className="w-80 nav-container shadow-2xl border-r border-border flex flex-col overflow-y-auto h-full">
               {/* Sidebar Header with Toggle Button */}
               <div className="p-3 border-b border-border bg-card/20">
                 <div className="flex items-center justify-between">
@@ -3095,7 +3095,7 @@ export default function NASAHabitatBuilder3D() {
 
         {/* 3D Canvas */}
         <main
-          className="flex-1 relative"
+          className="flex-1 relative h-full overflow-hidden"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >
