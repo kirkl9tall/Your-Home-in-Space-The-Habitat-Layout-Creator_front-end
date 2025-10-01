@@ -1053,8 +1053,21 @@ function ThreeScene({
         if (state.isRotating) {
           state.spherical.theta -= deltaX * state.rotateSpeed;
           state.spherical.phi += deltaY * state.rotateSpeed;
-          state.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, state.spherical.phi));
+          // Restrict phi to prevent camera from going underground (more restrictive range)
+          state.spherical.phi = Math.max(0.2, Math.min(Math.PI * 0.48, state.spherical.phi));
+          
+          // Update camera position and enforce ground plane constraint
           camera.position.setFromSpherical(state.spherical).add(state.target);
+          
+          // Prevent camera from going underground (Y < minimum height)
+          const minHeight = 2.0; // Minimum 2 meters above ground
+          if (camera.position.y < minHeight) {
+            camera.position.y = minHeight;
+            // Recalculate spherical coordinates to match the clamped position
+            const clampedPosition = camera.position.clone().sub(state.target);
+            state.spherical.setFromVector3(clampedPosition);
+          }
+          
           camera.lookAt(state.target);
           state.previousMouse = { x: event.clientX, y: event.clientY };
         } else if (state.isPanning) {
@@ -1101,11 +1114,70 @@ function ThreeScene({
         event.preventDefault();
         const state = cameraStateRef.current;
         const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+        
+        // Get cursor position for zoom-to-cursor functionality
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        // Create raycaster to find world position under cursor
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Find intersection with terrain/ground plane at Y=0
+        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersection = new THREE.Vector3();
+        raycaster.ray.intersectPlane(groundPlane, intersection);
+        
+        // Calculate zoom direction vector (from current target to cursor position)
+        // NOTE: Limited movement to preserve 3DTilesRendererJS LOD calculations
+        const zoomDirection = new THREE.Vector3().subVectors(intersection, state.target);
+        
         // Adjust zoom limits for expanded 200m habitat construction site
         const minZoom = isMarsEnvironment ? 8 : 5;   // Close-up view of modules
         const maxZoom = isMarsEnvironment ? 300 : 100; // Full overview of expanded 200m site
-        state.spherical.radius = Math.max(minZoom, Math.min(maxZoom, state.spherical.radius * zoomFactor));
+        
+        const oldRadius = state.spherical.radius;
+        const newRadius = Math.max(minZoom, Math.min(maxZoom, oldRadius * zoomFactor));
+        
+        // Calculate how much we're actually zooming
+        const actualZoomFactor = newRadius / oldRadius;
+        
+        // Alternative approach: Adjust spherical angles to simulate cursor zoom while keeping target stable
+        // This preserves 3DTilesRendererJS LOD quality by maintaining consistent target for tiles.setCamera()
+        const zoomIntensity = Math.abs(1 - actualZoomFactor);
+        
+        if (intersection && zoomDirection.length() > 0.1) {
+          // Calculate angle adjustment needed to "look toward" cursor position
+          const currentPos = new THREE.Vector3().setFromSpherical(state.spherical).add(state.target);
+          const desiredDirection = intersection.clone().sub(state.target).normalize();
+          const currentDirection = currentPos.clone().sub(state.target).normalize();
+          
+          // Calculate spherical coordinate adjustments for cursor-based zoom feel
+          const targetSpherical = new THREE.Spherical().setFromVector3(desiredDirection);
+          
+          // Smoothly interpolate angles toward cursor direction (but not too aggressively)
+          const angleBlend = Math.min(zoomIntensity * 0.1, 0.05); // Very gentle angle adjustment
+          state.spherical.theta = THREE.MathUtils.lerp(state.spherical.theta, targetSpherical.theta, angleBlend);
+          state.spherical.phi = THREE.MathUtils.lerp(state.spherical.phi, targetSpherical.phi, angleBlend);
+        }
+        
+        // Apply new zoom radius
+        state.spherical.radius = newRadius;
+        
+        // Update camera position - target stays stable for optimal 3DTiles LOD
         camera.position.setFromSpherical(state.spherical).add(state.target);
+        
+        // Prevent camera from going underground during zoom
+        const minHeight = 2.0; // Minimum 2 meters above ground
+        if (camera.position.y < minHeight) {
+          camera.position.y = minHeight;
+          // Recalculate spherical coordinates to match the clamped position
+          const clampedPosition = camera.position.clone().sub(state.target);
+          state.spherical.setFromVector3(clampedPosition);
+        }
+        
         camera.lookAt(state.target);
       }
 
@@ -1171,6 +1243,12 @@ function ThreeScene({
         if (starField) {
           const material = starField.material as THREE.PointsMaterial;
           material.opacity = 0.6 + 0.2 * Math.sin(Date.now() * 0.001);
+        }
+        
+        // Enforce ground plane constraint every frame
+        const minHeight = 2.0; // Minimum 2 meters above ground
+        if (camera.position.y < minHeight) {
+          camera.position.y = minHeight;
         }
         
         // Update Mars tiles if available
