@@ -22,102 +22,141 @@ import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import AnalysisResults from '@/ui/AnalysisResults';
 
 // Enhanced module types mapping from NASA functional areas to realistic 3D properties
+// NASA Clean/Dirty Area Classification for Visual Indicators
+const NASA_AREA_TYPES = {
+  CLEAN: ['CREW_SLEEP', 'FOOD_PREP', 'MEDICAL', 'WORKSTATION', 'COMMON_AREA', 'RECREATION'],
+  DIRTY: ['EXERCISE', 'HYGIENE', 'WASTE', 'MAINTENANCE', 'TRASH_MGMT'],
+  TECHNICAL: ['ECLSS', 'STOWAGE', 'AIRLOCK', 'GLOVEBOX', 'CUSTOM_CAD']
+};
+
 const MODULE_TYPES_3D = {
   CREW_SLEEP: { 
     color: '#3b82f6', 
     icon: '🛏️', 
     size: { width: 2.0, height: 2.1, depth: 2.2 },
-    geometry: 'sleep_pod' // Custom sleep pod shape
+    geometry: 'sleep_pod', // Custom sleep pod shape
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 0.76, height: 1.98, depth: 0.91 } // NASA crew quarters minimums
   },
   HYGIENE: { 
     color: '#10b981', 
     icon: '🚿', 
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'cylinder' // Cylindrical shower module
+    geometry: 'cylinder', // Cylindrical shower module
+    nasaCategory: 'DIRTY',
+    minDimensions: { width: 1.14, height: 1.98, depth: 0.76 } // NASA hygiene minimums
   },
   WASTE: { 
     color: '#f59e0b', 
     icon: '🚽', 
     size: { width: 1.8, height: 2.2, depth: 1.8 },
-    geometry: 'rounded_box' // Rounded waste management unit
+    geometry: 'rounded_box', // Rounded waste management unit
+    nasaCategory: 'DIRTY',
+    minDimensions: { width: 0.76, height: 1.98, depth: 0.76 } // NASA WCS minimums
   },
   EXERCISE: { 
     color: '#ef4444', 
     icon: '🏋️', 
     size: { width: 3.0, height: 2.5, depth: 4.0 },
-    geometry: 'gym_module' // Multi-level exercise area
+    geometry: 'gym_module', // Multi-level exercise area
+    nasaCategory: 'DIRTY',
+    minDimensions: { width: 2.4, height: 2.4, depth: 3.0 } // NASA exercise space minimums
   },
   FOOD_PREP: { 
     color: '#8b5cf6', 
     icon: '🍳', 
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'kitchen_module' // L-shaped kitchen module
+    geometry: 'kitchen_module', // L-shaped kitchen module
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 1.8, height: 2.1, depth: 1.2 } // NASA galley minimums
   },
   ECLSS: { 
     color: '#22c55e', 
     icon: '💨', 
     size: { width: 3.0, height: 2.3, depth: 2.5 },
-    geometry: 'technical_rack' // Equipment rack with panels
+    geometry: 'technical_rack', // Equipment rack with panels
+    nasaCategory: 'TECHNICAL',
+    minDimensions: { width: 1.5, height: 2.1, depth: 1.0 } // NASA ECLSS rack minimums
   },
   MEDICAL: { 
     color: '#ec4899', 
     icon: '🏥', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'medical_bay' // Medical examination area
+    geometry: 'medical_bay', // Medical examination area
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 1.8, height: 2.1, depth: 2.0 } // NASA medical bay minimums
   },
   MAINTENANCE: { 
     color: '#06b6d4', 
     icon: '🔧', 
     size: { width: 2.5, height: 2.3, depth: 2.5 },
-    geometry: 'workshop' // Workshop with tool storage
+    geometry: 'workshop', // Workshop with tool storage
+    nasaCategory: 'DIRTY',
+    minDimensions: { width: 1.5, height: 2.1, depth: 1.8 } // NASA maintenance minimums
   },
   CUSTOM_CAD: { 
     color: '#8b5cf6', 
     icon: '🏗️', 
     size: { width: 2.0, height: 2.0, depth: 2.0 },
-    geometry: 'custom' // Custom CAD-designed module
+    geometry: 'custom', // Custom CAD-designed module
+    nasaCategory: 'TECHNICAL',
+    minDimensions: { width: 1.0, height: 2.0, depth: 1.0 } // Minimum custom module size
   },
   STOWAGE: {
     color: '#f97316',
     icon: '📦',
     size: { width: 2.5, height: 2.3, depth: 3.5 },
-    geometry: 'storage_rack' // Multi-compartment storage
+    geometry: 'storage_rack', // Multi-compartment storage
+    nasaCategory: 'TECHNICAL',
+    minDimensions: { width: 1.2, height: 2.0, depth: 1.5 } // NASA storage minimums
   },
   RECREATION: {
     color: '#84cc16',
     icon: '🎮',
     size: { width: 2.0, height: 2.2, depth: 2.0 },
-    geometry: 'lounge_pod' // Comfortable lounge area
+    geometry: 'lounge_pod', // Comfortable lounge area
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 1.5, height: 2.1, depth: 1.5 } // NASA recreation minimums
   },
   WORKSTATION: {
     color: '#64748b',
     icon: '💻',
     size: { width: 2.2, height: 2.2, depth: 2.2 },
-    geometry: 'workstation' // Desk with equipment
+    geometry: 'workstation', // Desk with equipment
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 1.2, height: 2.1, depth: 0.9 } // NASA workstation minimums
   },
   AIRLOCK: {
     color: '#0ea5e9',
     icon: '🚪',
     size: { width: 2.0, height: 2.3, depth: 2.2 },
-    geometry: 'airlock_chamber' // Pressurized airlock
+    geometry: 'airlock_chamber', // Pressurized airlock
+    nasaCategory: 'TECHNICAL',
+    minDimensions: { width: 1.5, height: 2.1, depth: 1.5 } // NASA airlock minimums
   },
   GLOVEBOX: {
     color: '#8b5cf6',
     icon: '🧪',
     size: { width: 1.4, height: 2.0, depth: 1.8 },
-    geometry: 'science_station' // Laboratory workstation
+    geometry: 'science_station', // Laboratory workstation
+    nasaCategory: 'TECHNICAL',
+    minDimensions: { width: 1.0, height: 1.8, depth: 1.2 } // NASA glovebox minimums
   },
   TRASH_MGMT: {
     color: '#6b7280',
     icon: '🗑️',
     size: { width: 1.5, height: 2.0, depth: 2.0 },
-    geometry: 'compactor' // Waste compaction unit
+    geometry: 'compactor', // Waste compaction unit
+    nasaCategory: 'DIRTY',
+    minDimensions: { width: 1.0, height: 1.8, depth: 1.2 } // NASA waste mgmt minimums
   },
   COMMON_AREA: {
     color: '#f59e0b',
     icon: '👥',
     size: { width: 3.0, height: 2.2, depth: 3.0 },
-    geometry: 'community_space' // Open social area
+    geometry: 'community_space', // Open social area
+    nasaCategory: 'CLEAN',
+    minDimensions: { width: 2.0, height: 2.1, depth: 2.0 } // NASA common area minimums
   }
 };
 
@@ -226,6 +265,33 @@ function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Mat
   ];
   
   return materials;
+}
+
+// NASA Mission Duration Requirements Adjustment
+function getNASARequirementMultiplier(missionDays: number): { 
+  redundancy: number; 
+  storage: number; 
+  medical: number;
+  exercise: number;
+  description: string;
+} {
+  if (missionDays <= 30) {
+    return {
+      redundancy: 1.0,
+      storage: 1.0, 
+      medical: 1.0,
+      exercise: 1.0,
+      description: "Short-duration mission: Basic requirements"
+    };
+  } else {
+    return {
+      redundancy: 1.5, // 50% more redundancy for long missions
+      storage: 2.0,    // Double storage for consumables
+      medical: 1.3,    // Enhanced medical capability
+      exercise: 1.2,   // More exercise equipment to combat muscle atrophy
+      description: "Long-duration mission: Enhanced requirements for crew health"
+    };
+  }
 }
 
 // NASA-compatible object structure
@@ -2054,6 +2120,14 @@ export default function NASAHabitatBuilder3D() {
                     }))}
                     className="bg-background border-border text-foreground text-xs h-7 hover:bg-accent/50 transition-colors"
                   />
+                  {/* NASA Duration-Based Requirements Indicator */}
+                  <div className="text-[10px] mt-1">
+                    {scenario.mission_duration_days <= 30 ? (
+                      <span className="text-green-300">✓ Short Mission (≤30 days)</span>
+                    ) : (
+                      <span className="text-orange-300">⚠️ Long Mission ({'>'}30 days)</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div>
@@ -2111,36 +2185,65 @@ export default function NASAHabitatBuilder3D() {
             </h3>
             {showNasaFunctional && (
               <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                {/* NASA Category Legend */}
+                <div className="mb-3 text-xs">
+                  <div className="flex items-center gap-1 mb-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-green-300">Clean Areas</span>
+                  </div>
+                  <div className="flex items-center gap-1 mb-1">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <span className="text-orange-300">Dirty Areas</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-blue-300">Technical</span>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-3 gap-2">
                   {Object.entries(MODULE_TYPES_3D).map(([type, config]) => {
                     const preset = MODULE_PRESETS.find(p => p.type === type as FunctionalType);
+                    // Get NASA category color
+                    const categoryColor = config.nasaCategory === 'CLEAN' ? 'border-green-500/60' :
+                                        config.nasaCategory === 'DIRTY' ? 'border-orange-500/60' :
+                                        'border-blue-500/60';
+                    const categoryIndicator = config.nasaCategory === 'CLEAN' ? '🟢' :
+                                            config.nasaCategory === 'DIRTY' ? '🟠' : '🔵';
                     return (
                       <div
                         key={type}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData("module", type)}
-                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-primary/20 border border-border hover:border-primary/60 rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
-                    >
-                      <div 
-                        className="w-8 h-8 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0"
-                        style={{ backgroundColor: config.color }}
+                        className={`group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-primary/20 border ${categoryColor} rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg`}
+                        title={`NASA ${config.nasaCategory} Area`}
                       >
-                        {config.icon}
-                      </div>
-                      <div className="text-center min-w-0 w-full">
-                        <div className="font-medium text-foreground text-xs truncate">{preset?.label || type}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
+                        <div className="relative">
+                          <div 
+                            className="w-8 h-8 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0"
+                            style={{ backgroundColor: config.color }}
+                          >
+                            {config.icon}
+                          </div>
+                          <div className="absolute -top-1 -right-1 text-xs">{categoryIndicator}</div>
+                        </div>
+                        <div className="text-center min-w-0 w-full">
+                          <div className="font-medium text-foreground text-xs truncate">{preset?.label || type}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
+                          </div>
+                          <div className="text-[9px] text-gray-400">
+                            Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-muted-foreground text-center mt-2">
+                  🟢 Clean: Food/Sleep/Medical • 🟠 Dirty: Exercise/Hygiene/Waste • 🔵 Technical: Systems/Storage
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground text-center mt-2">
-                Scroll to see all {Object.keys(MODULE_TYPES_3D).length} functional areas
-              </div>
-            </div>
             )}
           </div>
 
@@ -2183,6 +2286,52 @@ export default function NASAHabitatBuilder3D() {
               )}
             </div>
           )}
+
+          {/* NASA Compliance Assistant */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-yellow-400" />
+              NASA Assistant
+            </h3>
+            {(() => {
+              const requirements = getNASARequirementMultiplier(scenario.mission_duration_days);
+              const recommendations: string[] = [];
+              
+              // Check required modules
+              const crewSleep = objects.filter(o => o.type === 'CREW_SLEEP').length;
+              const hygiene = objects.filter(o => o.type === 'HYGIENE').length;
+              const exercise = objects.filter(o => o.type === 'EXERCISE').length;
+              const medical = objects.filter(o => o.type === 'MEDICAL').length;
+              
+              if (crewSleep < scenario.crew_size) {
+                recommendations.push(`Add ${scenario.crew_size - crewSleep} more CREW_SLEEP modules`);
+              }
+              if (hygiene < Math.ceil(scenario.crew_size * requirements.redundancy)) {
+                recommendations.push(`Add ${Math.ceil(scenario.crew_size * requirements.redundancy) - hygiene} more HYGIENE modules`);
+              }
+              if (exercise < Math.ceil(requirements.exercise)) {
+                recommendations.push(`Add ${Math.ceil(requirements.exercise) - exercise} EXERCISE module`);
+              }
+              if (medical < Math.ceil(requirements.medical)) {
+                recommendations.push(`Add ${Math.ceil(requirements.medical) - medical} MEDICAL module`);
+              }
+              
+              return (
+                <div className="space-y-2">
+                  {recommendations.length > 0 ? (
+                    <div className="text-xs space-y-1">
+                      <div className="font-medium text-yellow-300">📋 Recommendations:</div>
+                      {recommendations.slice(0, 3).map((rec, idx) => (
+                        <div key={idx} className="text-gray-300 text-[10px]">• {rec}</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-green-300">✅ All NASA requirements met!</div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
 
           {/* Quick Actions & Custom Shapes */}
           <div className="p-3 border-b border-border">
@@ -2227,6 +2376,63 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
+          {/* NASA Compliance Panel */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              NASA Compliance Status
+            </h3>
+            <div className="space-y-2">
+              {(() => {
+                // Real-time compliance check
+                const cleanModules = objects.filter(obj => 
+                  NASA_AREA_TYPES.CLEAN.includes(obj.type as any));
+                const dirtyModules = objects.filter(obj => 
+                  NASA_AREA_TYPES.DIRTY.includes(obj.type as any));
+                
+                let violations = 0;
+                let nearbyViolations: string[] = [];
+                
+                cleanModules.forEach(clean => {
+                  dirtyModules.forEach(dirty => {
+                    const distance = Math.sqrt(
+                      Math.pow(clean.position[0] - dirty.position[0], 2) +
+                      Math.pow(clean.position[2] - dirty.position[2], 2)
+                    );
+                    if (distance < 3.0) { // Within 3m is considered too close
+                      violations++;
+                      nearbyViolations.push(`${clean.type} near ${dirty.type}`);
+                    }
+                  });
+                });
+
+                const totalCompliance = Math.max(0, 100 - (violations * 20));
+                const complianceColor = totalCompliance >= 80 ? 'text-green-400' :
+                                      totalCompliance >= 60 ? 'text-yellow-400' : 'text-red-400';
+
+                return (
+                  <div>
+                    <div className={`text-lg font-bold ${complianceColor}`}>
+                      {totalCompliance}% Compliant
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div>Clean Areas: {cleanModules.length}</div>
+                      <div>Dirty Areas: {dirtyModules.length}</div>
+                      {violations > 0 && (
+                        <div className="text-red-300 mt-2">
+                          <div className="font-medium">⚠️ {violations} Separation Issues:</div>
+                          {nearbyViolations.slice(0, 2).map((violation, idx) => (
+                            <div key={idx} className="text-[10px] ml-2">• {violation}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* Selected Module Inspector */}
           {selectedObject && (
             <div className="p-4 border-b border-border">
@@ -2248,11 +2454,26 @@ export default function NASAHabitatBuilder3D() {
                     <span className="text-lg">{MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D]?.icon}</span>
                     {MODULE_PRESETS.find(p => p.type === selectedObject.type)?.label}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                    <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
-                    <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
-                    <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
-                  </div>
+                  {(() => {
+                    const config = MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D];
+                    const categoryColor = config?.nasaCategory === 'CLEAN' ? 'text-green-300' :
+                                        config?.nasaCategory === 'DIRTY' ? 'text-orange-300' : 'text-blue-300';
+                    return (
+                      <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                        <div className={`${categoryColor} font-medium`}>
+                          NASA {config?.nasaCategory} Area
+                        </div>
+                        <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
+                        <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
+                        <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
+                        {config?.minDimensions && (
+                          <div className="text-yellow-300">
+                            NASA Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button
                   onClick={() => {
@@ -2269,7 +2490,7 @@ export default function NASAHabitatBuilder3D() {
             </div>
           )}
 
-          {/* Mission Status */}
+          {/* Enhanced Mission Status with NASA Requirements */}
           <div className="p-4 border-b border-purple-500/20">
             <h3 className="font-semibold text-purple-300 mb-3">Mission Status</h3>
             <div className="space-y-2">
@@ -2281,6 +2502,59 @@ export default function NASAHabitatBuilder3D() {
                   {objects.reduce((acc, obj) => acc + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0).toFixed(1)}m³
                 </span>
               </div>
+              
+              {/* NASA Requirements Summary */}
+              {(() => {
+                const requirements = getNASARequirementMultiplier(scenario.mission_duration_days);
+                const requiredModules = {
+                  CREW_SLEEP: scenario.crew_size,
+                  HYGIENE: Math.ceil(scenario.crew_size * requirements.redundancy),
+                  EXERCISE: Math.ceil(requirements.exercise),
+                  MEDICAL: Math.ceil(requirements.medical),
+                  STOWAGE: Math.ceil(scenario.crew_size * requirements.storage)
+                };
+                
+                const currentModules = {
+                  CREW_SLEEP: objects.filter(o => o.type === 'CREW_SLEEP').length,
+                  HYGIENE: objects.filter(o => o.type === 'HYGIENE').length,
+                  EXERCISE: objects.filter(o => o.type === 'EXERCISE').length,
+                  MEDICAL: objects.filter(o => o.type === 'MEDICAL').length,
+                  STOWAGE: objects.filter(o => o.type === 'STOWAGE').length
+                };
+                
+                const compliance = Object.entries(requiredModules).map(([type, required]) => {
+                  const current = currentModules[type as keyof typeof currentModules];
+                  return { type, required, current, ratio: current / required };
+                });
+
+                const overallCompliance = compliance.reduce((acc, c) => acc + Math.min(1, c.ratio), 0) / compliance.length * 100;
+
+                return (
+                  <div className="mt-3 p-2 bg-card/20 rounded border border-border">
+                    <div className="text-xs text-gray-300 mb-2">
+                      <span className="font-medium text-purple-200">NASA Compliance:</span>
+                      <span className={`ml-2 font-bold ${overallCompliance >= 80 ? 'text-green-300' : 
+                                      overallCompliance >= 60 ? 'text-yellow-300' : 'text-red-300'}`}>
+                        {overallCompliance.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 space-y-1">
+                      {compliance.map(c => (
+                        <div key={c.type} className="flex justify-between">
+                          <span>{c.type}:</span>
+                          <span className={c.current >= c.required ? 'text-green-300' : 'text-red-300'}>
+                            {c.current}/{c.required}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[9px] text-gray-400 mt-2 italic">
+                      {requirements.description}
+                    </div>
+                  </div>
+                );
+              })()}
+              
               <div className="text-sm text-gray-300">
                 3D Engine: <span className="font-medium text-green-300">
                   {isInitialized ? 'Active' : 'Loading...'}
