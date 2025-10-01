@@ -418,18 +418,39 @@ function ThreeScene({
   const isDraggingObjectRef = useRef(false);
   const dragOffsetRef = useRef(new THREE.Vector3());
   const animationIdRef = useRef<number>();
+  
+  // Refs to store current state values for event handlers
+  const selectedIdRef = useRef(selectedId);
+  const setSelectedIdRef = useRef(setSelectedId);
+  const setObjectsRef = useRef(setObjects);
 
-  // Camera control state
+  // Camera control state - adjust for Mars terrain scale
+  const isMarsEnvironment = scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT';
+  const initialCameraDistance = isMarsEnvironment ? 150 : 25; // Further back for Mars terrain
+  
   const cameraStateRef = useRef({
     isRotating: false,
     isPanning: false,
     isSpacePressed: false,
     previousMouse: { x: 0, y: 0 },
-    spherical: new THREE.Spherical(25, Math.PI / 4, 0),
+    spherical: new THREE.Spherical(initialCameraDistance, Math.PI / 4, 0),
     target: new THREE.Vector3(0, 0, 0),
-    panSpeed: 0.02,
+    panSpeed: isMarsEnvironment ? 0.1 : 0.02, // Faster panning for larger terrain
     rotateSpeed: 0.005
   });
+
+  // Keep refs updated with current values
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+  
+  useEffect(() => {
+    setSelectedIdRef.current = setSelectedId;
+  }, [setSelectedId]);
+  
+  useEffect(() => {
+    setObjectsRef.current = setObjects;
+  }, [setObjects]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -481,6 +502,17 @@ function ThreeScene({
       
       // Store raycaster and plane refs for drag/drop calculations
       sceneRefs.current.raycaster = raycasterRef.current;
+      
+      // Initialize drag/drop plane properly for Mars terrain
+      if (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') {
+        // For Mars terrain, set up plane at ground level (Y=0) pointing upward
+        planeRef.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        console.log('🔴 Initialized Mars drag/drop plane at Y=0');
+      } else {
+        // For other environments, use standard plane
+        planeRef.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      }
+      
       sceneRefs.current.plane = planeRef.current;
 
       // Add canvas to DOM
@@ -497,70 +529,209 @@ function ThreeScene({
       directionalLight.shadow.mapSize.height = 2048;
       scene.add(directionalLight);
 
-      // Dynamic ground with texture loading based on destination
-      const groundGeometry = new THREE.PlaneGeometry(100, 100);
-      
-      // Create texture loader
-      const textureLoader = new THREE.TextureLoader();
-      
-      // Try to load ground texture, fall back to color if texture fails
-      let groundMaterial: THREE.MeshLambertMaterial;
-      
-      try {
-        console.log(`Loading ground texture: ${envConfig.groundTexture}`);
-        const texture = textureLoader.load(
-          envConfig.groundTexture,
-          // onLoad callback
-          (texture) => {
-            console.log('Ground texture loaded successfully');
-            // Configure texture properties for single image (no tiling)
-            texture.wrapS = THREE.ClampToEdgeWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
-            texture.repeat.set(1, 1); // Single image, no repetition
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = true;
-            
-            // Update the material to use the texture
-            groundMaterial.map = texture;
-            groundMaterial.needsUpdate = true;
-          },
-          // onProgress callback
-          (progress) => {
-            console.log('Loading ground texture progress:', progress);
-          },
-          // onError callback
-          (error) => {
-            console.warn('Failed to load ground texture, using fallback color:', error);
-            // Material already created with fallback color, so no additional action needed
-          }
-        );
+      // Dynamic terrain based on destination - Mars terrain for Mars destinations
+      if (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') {
+        console.log('Loading Mars terrain for destination:', scenario.destination);
         
-        // Create material with texture (will show fallback color until texture loads)
-        groundMaterial = new THREE.MeshLambertMaterial({ 
+        // Create fallback terrain while loading 3D tiles - realistic Mars terrain size
+        const fallbackGeometry = new THREE.PlaneGeometry(500, 500, 64, 64);
+        const fallbackVertices = fallbackGeometry.attributes.position;
+        
+        // Add Mars-like height variation to fallback
+        for (let i = 0; i < fallbackVertices.count; i++) {
+          const x = fallbackVertices.getX(i);
+          const z = fallbackVertices.getZ(i);
+          const y = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 1.5 + 
+                   Math.sin(x * 0.1) * 0.5 + 
+                   Math.random() * 0.3;
+          fallbackVertices.setY(i, y);
+        }
+        fallbackGeometry.computeVertexNormals();
+        
+        const fallbackMaterial = new THREE.MeshLambertMaterial({ 
           color: envConfig.ground,
-          map: texture 
+          side: THREE.DoubleSide
         });
-      } catch (error) {
-        console.warn('Error creating texture loader, using fallback color:', error);
-        // Fallback to solid color if texture loading fails
-        groundMaterial = new THREE.MeshLambertMaterial({ color: envConfig.ground });
+        
+        const fallbackTerrain = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+        // Rotate terrain to be horizontal (ground plane) and right-side up
+        fallbackTerrain.rotation.x = -Math.PI / 2; // This should be correct for PlaneGeometry (facing up)
+        fallbackTerrain.position.y = 0; // Ensure it's at ground level
+        fallbackTerrain.receiveShadow = true;
+        scene.add(fallbackTerrain);
+        
+        console.log('🟠 Mars fallback terrain created:', {
+          position: fallbackTerrain.position,
+          rotation: fallbackTerrain.rotation,
+          rotationDegrees: {
+            x: (fallbackTerrain.rotation.x * 180 / Math.PI),
+            y: (fallbackTerrain.rotation.y * 180 / Math.PI),
+            z: (fallbackTerrain.rotation.z * 180 / Math.PI)
+          }
+        });
+        
+        // Try to load NASA Mars 3D tiles
+        (async () => {
+          try {
+            console.log('Attempting to load NASA Mars Science Laboratory data...');
+            const tilesUrl = 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize_tileset.json';
+            
+            // Test network access first
+            const testResponse = await fetch(tilesUrl, { 
+              mode: 'cors',
+              method: 'HEAD'
+            });
+            
+            if (testResponse.ok) {
+              const { TilesRenderer } = await import('3d-tiles-renderer');
+              
+              console.log('NASA data accessible, loading 3D tiles...');
+              const tiles = new TilesRenderer(tilesUrl);
+              // Note: fetchOptions property may not exist in current version
+              // tiles.fetchOptions.mode = 'cors';
+              tiles.errorTarget = 12;
+              
+              tiles.addEventListener('load-tile-set', () => {
+                console.log('✅ NASA Mars terrain loaded successfully!');
+                
+                // Position Mars terrain properly
+                const sphere = new THREE.Sphere();
+                tiles.getBoundingSphere(sphere);
+                
+                console.log('🔍 Mars terrain bounding sphere:', {
+                  center: sphere.center,
+                  radius: sphere.radius
+                });
+                
+                if (sphere.radius > 0) {
+                  // Scale terrain to be realistic for habitat placement (about 500m x 500m area)
+                  const desiredTerrainSize = 500; // 500 meters
+                  const scale = desiredTerrainSize / (sphere.radius * 2);
+                  tiles.group.scale.setScalar(scale);
+                  
+                  // Position terrain at ground level (Y=0)
+                  tiles.group.position.set(0, 0, 0);
+                  
+                  // CRITICAL: Ensure Mars terrain is oriented as horizontal ground plane (right-side up)
+                  // NASA Mars data comes in Z-up orientation, we need to rotate it to Y-up and flip it right-side up
+                  
+                  // Rotate to horizontal and flip right-side up
+                  tiles.group.rotation.set(Math.PI / 2, 0, 0); // Rotate X by +90 degrees to make it horizontal and right-side up
+                  
+                  // Hide fallback terrain
+                  fallbackTerrain.visible = false;
+                  
+                  // Update the drag/drop plane to match the terrain position exactly
+                  // Place the plane at the same Y level as the terrain (Y=0) pointing upward
+                  planeRef.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                  
+                  console.log('✅ Mars terrain positioned:', {
+                    scale: scale,
+                    terrainSize: desiredTerrainSize + 'm',
+                    position: tiles.group.position,
+                    rotation: tiles.group.rotation,
+                    rotationDegrees: {
+                      x: (tiles.group.rotation.x * 180 / Math.PI),
+                      y: (tiles.group.rotation.y * 180 / Math.PI), 
+                      z: (tiles.group.rotation.z * 180 / Math.PI)
+                    }
+                  });
+                }
+              });
+              
+              tiles.addEventListener('load-error', (event: any) => {
+                console.warn('Mars tile load error:', event.error?.message || 'Unknown');
+                console.log('Continuing with fallback Mars terrain');
+              });
+              
+              scene.add(tiles.group);
+              
+              // Store tiles reference for updates
+              (scene as any).marsTiles = tiles;
+              
+            } else {
+              console.warn('NASA data not accessible, using fallback Mars terrain');
+            }
+            
+          } catch (error) {
+            console.warn('Failed to load Mars 3D tiles:', error);
+            console.log('Continuing with fallback Mars terrain');
+          }
+        })();
+        
+      } else {
+        // Standard ground for non-Mars destinations
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        
+        // Create texture loader
+        const textureLoader = new THREE.TextureLoader();
+        
+        // Try to load ground texture, fall back to color if texture fails
+        let groundMaterial: THREE.MeshLambertMaterial;
+        
+        try {
+          console.log(`Loading ground texture: ${envConfig.groundTexture}`);
+          const texture = textureLoader.load(
+            envConfig.groundTexture,
+            // onLoad callback
+            (texture) => {
+              console.log('Ground texture loaded successfully');
+              // Configure texture properties for single image (no tiling)
+              texture.wrapS = THREE.ClampToEdgeWrapping;
+              texture.wrapT = THREE.ClampToEdgeWrapping;
+              texture.repeat.set(1, 1); // Single image, no repetition
+              texture.minFilter = THREE.LinearMipmapLinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.generateMipmaps = true;
+              
+              // Update the material to use the texture
+              groundMaterial.map = texture;
+              groundMaterial.needsUpdate = true;
+            },
+            // onProgress callback
+            (progress) => {
+              console.log('Loading ground texture progress:', progress);
+            },
+            // onError callback
+            (error) => {
+              console.warn('Failed to load ground texture, using fallback color:', error);
+              // Material already created with fallback color, so no additional action needed
+            }
+          );
+          
+          // Create material with texture (will show fallback color until texture loads)
+          groundMaterial = new THREE.MeshLambertMaterial({ 
+            color: envConfig.ground,
+            map: texture 
+          });
+        } catch (error) {
+          console.warn('Error creating texture loader, using fallback color:', error);
+          // Fallback to solid color if texture loading fails
+          groundMaterial = new THREE.MeshLambertMaterial({ color: envConfig.ground });
+        }
+        
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
       }
-      
-      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-      ground.rotation.x = -Math.PI / 2;
-      ground.receiveShadow = true;
-      scene.add(ground);
 
-      // Skybox disabled for now - using solid black background
-      // TODO: Implement better skybox solution later
-      scene.background = new THREE.Color(0x000000); // Simple black sky
+      // Set appropriate background for environment
+      scene.background = new THREE.Color(0x000000); // Simple black sky for space
 
-      // Dynamic grid
-      const gridHelper = new THREE.GridHelper(50, 50, envConfig.grid, envConfig.grid);
+      // Dynamic grid - larger for Mars terrain, smaller for other environments
+      const gridSize = (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') ? 500 : 50;
+      const gridDivisions = (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') ? 100 : 50;
+      const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, envConfig.grid, envConfig.grid);
       gridHelper.material.transparent = true;
       gridHelper.material.opacity = 0.3;
+      
+      // Ensure grid is positioned at ground level (Y=0)
+      gridHelper.position.y = 0;
+      
       scene.add(gridHelper);
+      
+      console.log(`Grid helper created: size=${gridSize}m, divisions=${gridDivisions}, position Y=${gridHelper.position.y}`);
 
       // Mouse events
       function handleMouseDown(event: MouseEvent) {
@@ -588,13 +759,13 @@ function ThreeScene({
           
           if (intersects.length > 0) {
             const clickedId = intersects[0].object.userData.id;
-            setSelectedId(clickedId);
+            setSelectedIdRef.current(clickedId);
             isDraggingObjectRef.current = true;
             const selectedMesh = intersects[0].object;
             const intersectionPoint = intersects[0].point;
             dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
           } else {
-            setSelectedId(null);
+            setSelectedIdRef.current(null);
             state.isRotating = true;
             state.previousMouse = { x: event.clientX, y: event.clientY };
           }
@@ -617,8 +788,8 @@ function ThreeScene({
           hoverPointRef.current = hit.clone();
         }
 
-        if (isDraggingObjectRef.current && selectedId) {
-          const selectedMesh = meshesRef.current.get(selectedId);
+        if (isDraggingObjectRef.current && selectedIdRef.current) {
+          const selectedMesh = meshesRef.current.get(selectedIdRef.current);
           if (selectedMesh) {
             const groundHit = new THREE.Vector3();
             raycasterRef.current.ray.intersectPlane(planeRef.current, groundHit);
@@ -657,12 +828,12 @@ function ThreeScene({
       }
 
       function handleMouseUp() {
-        if (isDraggingObjectRef.current && selectedId) {
-          const selectedMesh = meshesRef.current.get(selectedId);
+        if (isDraggingObjectRef.current && selectedIdRef.current) {
+          const selectedMesh = meshesRef.current.get(selectedIdRef.current);
           if (selectedMesh) {
             const pos = selectedMesh.position;
-            setObjects(prev => prev.map(obj => 
-              obj.id === selectedId 
+            setObjectsRef.current(prev => prev.map(obj => 
+              obj.id === selectedIdRef.current 
                 ? { ...obj, position: [pos.x, pos.y, pos.z] as [number, number, number] }
                 : obj
             ));
@@ -686,7 +857,10 @@ function ThreeScene({
         event.preventDefault();
         const state = cameraStateRef.current;
         const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
-        state.spherical.radius = Math.max(5, Math.min(100, state.spherical.radius * zoomFactor));
+        // Adjust zoom limits based on environment scale
+        const minZoom = isMarsEnvironment ? 10 : 5;
+        const maxZoom = isMarsEnvironment ? 500 : 100;
+        state.spherical.radius = Math.max(minZoom, Math.min(maxZoom, state.spherical.radius * zoomFactor));
         camera.position.setFromSpherical(state.spherical).add(state.target);
         camera.lookAt(state.target);
       }
@@ -755,6 +929,14 @@ function ThreeScene({
           material.opacity = 0.6 + 0.2 * Math.sin(Date.now() * 0.001);
         }
         
+        // Update Mars tiles if available
+        if ((scene as any).marsTiles) {
+          const tiles = (scene as any).marsTiles;
+          tiles.setCamera(camera);
+          tiles.setResolutionFromRenderer(camera, renderer);
+          tiles.update();
+        }
+        
         renderer.render(scene, camera);
       }
       animate();
@@ -794,6 +976,15 @@ function ThreeScene({
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
         
+        // Cleanup Mars tiles if available
+        if ((sceneRef.current as any)?.marsTiles) {
+          try {
+            (sceneRef.current as any).marsTiles.dispose();
+          } catch (error) {
+            console.warn('Error disposing Mars tiles:', error);
+          }
+        }
+        
         if (mountRef.current && renderer.domElement) {
           mountRef.current.removeChild(renderer.domElement);
         }
@@ -804,7 +995,7 @@ function ThreeScene({
     } catch (error) {
       console.error('Error initializing Three.js:', error);
     }
-  }, [selectedId, setSelectedId, setObjects, hoverPointRef, setIsInitialized, scenario.destination]);
+  }, [scenario.destination, setIsInitialized]); // Only reinitialize when destination changes, not when objects change
 
   // Update objects in scene
   useEffect(() => {
@@ -1264,11 +1455,11 @@ export default function NASAHabitatBuilder3D() {
       level: 0,
       position: [obj.position?.[0] || 0, obj.position?.[2] || 0],
       size: {
-        w_m: obj.size?.w_m || obj.size?.width || 2,
-        l_m: obj.size?.l_m || obj.size?.depth || 2,
-        h_m: obj.size?.h_m || obj.size?.height || 2.1
+        w_m: obj.size?.w_m || 2,
+        l_m: obj.size?.l_m || 2,
+        h_m: obj.size?.h_m || 2.1
       },
-      rotation_deg: obj.rotation?.y ? (obj.rotation.y * 180 / Math.PI) : 0,
+      rotation_deg: obj.rotation?.[1] ? (obj.rotation[1] * 180 / Math.PI) : 0,
       crew_capacity: obj.type === "CREW_SLEEP" ? 1 : undefined,
       equipment: []
     }));
@@ -2145,6 +2336,11 @@ export default function NASAHabitatBuilder3D() {
                 <div>Duration: {scenario.mission_duration_days} days</div>
                 <div>Vehicle: {scenario.fairing.name}</div>
                 <div>Modules: {objects.length}</div>
+                {(scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') && (
+                  <div className="text-orange-300">
+                    🔴 Mars Terrain: NASA MSL Data
+                  </div>
+                )}
               </div>
             </div>
           </div>
