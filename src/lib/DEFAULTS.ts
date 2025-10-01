@@ -119,22 +119,22 @@ export type ModulePreset = {
 };
 
 export const MODULE_PRESETS: ModulePreset[] = [
-  { type: "CREW_SLEEP", label: "Crew Bunk",        defaultSize: { w_m: 2.0, l_m: 2.2, h_m: 2.1 }, icon: "bed" },
-  { type: "HYGIENE",    label: "Hygiene Bay",      defaultSize: { w_m: 2.0, l_m: 2.0, h_m: 2.2 }, icon: "shower" },
-  { type: "WASTE",      label: "Waste Compartment",defaultSize: { w_m: 1.8, l_m: 1.8, h_m: 2.2 }, icon: "trash" },
-  { type: "EXERCISE",   label: "Exercise (ARED)",  defaultSize: { w_m: 3.0, l_m: 4.0, h_m: 2.5 }, icon: "dumbbell" },
-  { type: "FOOD_PREP",  label: "Galley",           defaultSize: { w_m: 3.0, l_m: 3.0, h_m: 2.2 }, icon: "utensils" },
-  { type: "ECLSS",      label: "ECLSS Pallets",    defaultSize: { w_m: 3.0, l_m: 2.5, h_m: 2.3 }, icon: "fan" },
-  { type: "MEDICAL",    label: "Med Bay",          defaultSize: { w_m: 2.5, l_m: 2.5, h_m: 2.3 }, icon: "first-aid" },
-  { type: "MAINTENANCE",label: "Maint. Bench",     defaultSize: { w_m: 2.5, l_m: 2.5, h_m: 2.3 }, icon: "wrench" },
-  { type: "STOWAGE",    label: "Stowage Rack",     defaultSize: { w_m: 2.5, l_m: 3.5, h_m: 2.3 }, icon: "boxes" },
-  { type: "RECREATION", label: "Recreation",       defaultSize: { w_m: 2.0, l_m: 2.0, h_m: 2.2 }, icon: "gamepad" },
-  { type: "WORKSTATION",label: "Workstation",      defaultSize: { w_m: 2.2, l_m: 2.2, h_m: 2.2 }, icon: "monitor" },
-  { type: "AIRLOCK",    label: "Airlock",          defaultSize: { w_m: 2.0, l_m: 2.2, h_m: 2.3 }, icon: "door" },
-  { type: "GLOVEBOX",   label: "Glovebox",         defaultSize: { w_m: 1.4, l_m: 1.8, h_m: 2.0 }, icon: "flask" },
-  { type: "TRASH_MGMT", label: "Trash Mgmt",       defaultSize: { w_m: 1.5, l_m: 2.0, h_m: 2.0 }, icon: "recycle" },
-  { type: "COMMON_AREA",label: "Common Area",     defaultSize: { w_m: 3.0, l_m: 3.0, h_m: 2.2 }, icon: "users" },
-  { type: "CUSTOM_CAD", label: "Custom CAD Module", defaultSize: { w_m: 2.0, l_m: 2.0, h_m: 2.0 }, icon: "settings" }
+  { type: "CREW_SLEEP", label: "Crew Quarters",    defaultSize: { w_m: 0.91, l_m: 0.76, h_m: 1.98 }, icon: "bed" },      // 30"×30"×78" ISS standard
+  { type: "HYGIENE",    label: "Hygiene Bay",      defaultSize: { w_m: 1.14, l_m: 0.76, h_m: 1.98 }, icon: "shower" },   // 45"×30"×78" ISS WHC
+  { type: "WASTE",      label: "Waste System",     defaultSize: { w_m: 0.76, l_m: 0.76, h_m: 1.98 }, icon: "trash" },    // 30"×30"×78" ISS WCS
+  { type: "EXERCISE",   label: "Exercise (ARED)",  defaultSize: { w_m: 1.83, l_m: 1.22, h_m: 2.13 }, icon: "dumbbell" }, // 72"×48"×84" ISS ARED
+  { type: "FOOD_PREP",  label: "Galley",           defaultSize: { w_m: 1.52, l_m: 0.61, h_m: 2.13 }, icon: "utensils" }, // 60"×24"×84" ISS galley
+  { type: "ECLSS",      label: "Life Support",     defaultSize: { w_m: 0.63, l_m: 0.91, h_m: 2.13 }, icon: "fan" },      // 25"×36"×84" ISS rack
+  { type: "MEDICAL",    label: "Medical Bay",      defaultSize: { w_m: 1.22, l_m: 0.91, h_m: 2.13 }, icon: "first-aid" },// 48"×36"×84" ISS HRF
+  { type: "MAINTENANCE",label: "Maintenance",      defaultSize: { w_m: 1.22, l_m: 1.22, h_m: 2.13 }, icon: "wrench" },   // 48"×48"×84" ISS maint
+  { type: "STOWAGE",    label: "Storage Rack",     defaultSize: { w_m: 0.63, l_m: 0.91, h_m: 2.13 }, icon: "boxes" },    // 25"×36"×84" ISS CTB
+  { type: "RECREATION", label: "Recreation",       defaultSize: { w_m: 1.22, l_m: 1.22, h_m: 2.13 }, icon: "gamepad" },  // 48"×48"×84" ISS cupola
+  { type: "WORKSTATION",label: "Workstation",      defaultSize: { w_m: 0.76, l_m: 0.61, h_m: 2.13 }, icon: "monitor" },  // 30"×24"×84" ISS work
+  { type: "AIRLOCK",    label: "Airlock",          defaultSize: { w_m: 1.27, l_m: 1.27, h_m: 1.91 }, icon: "door" },     // 50"×50"×75" ISS Quest
+  { type: "GLOVEBOX",   label: "Science Glovebox", defaultSize: { w_m: 1.27, l_m: 0.89, h_m: 0.89 }, icon: "flask" },    // 50"×35"×35" ISS MSG
+  { type: "TRASH_MGMT", label: "Trash Compactor",  defaultSize: { w_m: 0.76, l_m: 0.76, h_m: 2.13 }, icon: "recycle" }, // 30"×30"×84" ISS trash
+  { type: "COMMON_AREA",label: "Common Area",      defaultSize: { w_m: 2.44, l_m: 2.44, h_m: 2.13 }, icon: "users" },    // 96"×96"×84" ISS Unity
+  { type: "CUSTOM_CAD", label: "Custom Module",    defaultSize: { w_m: 1.22, l_m: 1.22, h_m: 2.13 }, icon: "settings" } // Standard rack size
 ];
 
 /** ---- Utility: quick color status for a module vs. target area ---- */

@@ -4,14 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, XCircle, Lightbulb, Download, Settings, Trash2, Camera, Move, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
+
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
-import { postCheckLayout, postSuggestLayout } from '@/lib/api';
+
 import { postAnalyzeRaw } from '@/api/analyzer';
-import { Layout, Scenario, ScenarioSchema, HabitatSchema, ModuleSchema } from '@/lib/schemas';
+import { Layout, Scenario } from '@/lib/schemas';
 
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
@@ -33,66 +33,74 @@ const MODULE_TYPES_3D = {
   CREW_SLEEP: { 
     color: '#3b82f6', 
     icon: '🛏️', 
-    size: { width: 2.0, height: 2.1, depth: 2.2 },
+    size: { width: 0.91, height: 1.98, depth: 0.76 }, // Real NASA crew quarters: 30"×30"×78" (ISS standard)
     geometry: 'sleep_pod', // Custom sleep pod shape
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 0.76, height: 1.98, depth: 0.91 } // NASA crew quarters minimums
+    minDimensions: { width: 0.76, height: 1.98, depth: 0.76 }, // NASA absolute minimums
+    realWorldRef: 'ISS crew quarters (30"×30"×78")'
   },
   HYGIENE: { 
     color: '#10b981', 
     icon: '🚿', 
-    size: { width: 2.0, height: 2.2, depth: 2.0 },
+    size: { width: 1.14, height: 1.98, depth: 0.76 }, // Real NASA hygiene: 45"×30"×78" (ISS WHC)
     geometry: 'cylinder', // Cylindrical shower module
     nasaCategory: 'DIRTY',
-    minDimensions: { width: 1.14, height: 1.98, depth: 0.76 } // NASA hygiene minimums
+    minDimensions: { width: 1.14, height: 1.98, depth: 0.76 }, // NASA hygiene minimums
+    realWorldRef: 'ISS Waste & Hygiene Compartment (45"×30"×78")'
   },
   WASTE: { 
     color: '#f59e0b', 
     icon: '🚽', 
-    size: { width: 1.8, height: 2.2, depth: 1.8 },
+    size: { width: 0.76, height: 1.98, depth: 0.76 }, // Real NASA WCS: 30"×30"×78" (ISS WCS)
     geometry: 'rounded_box', // Rounded waste management unit
     nasaCategory: 'DIRTY',
-    minDimensions: { width: 0.76, height: 1.98, depth: 0.76 } // NASA WCS minimums
+    minDimensions: { width: 0.76, height: 1.98, depth: 0.76 }, // NASA WCS minimums
+    realWorldRef: 'ISS Waste Collection System (30"×30"×78")'
   },
   EXERCISE: { 
     color: '#ef4444', 
     icon: '🏋️', 
-    size: { width: 3.0, height: 2.5, depth: 4.0 },
+    size: { width: 1.83, height: 2.13, depth: 1.22 }, // Real NASA ARED: 72"×84"×48" (ISS exercise device)
     geometry: 'gym_module', // Multi-level exercise area
     nasaCategory: 'DIRTY',
-    minDimensions: { width: 2.4, height: 2.4, depth: 3.0 } // NASA exercise space minimums
+    minDimensions: { width: 1.52, height: 2.13, depth: 1.22 }, // NASA exercise space minimums
+    realWorldRef: 'ISS Advanced Resistive Exercise Device (ARED)'
   },
   FOOD_PREP: { 
     color: '#8b5cf6', 
     icon: '🍳', 
-    size: { width: 3.0, height: 2.2, depth: 3.0 },
+    size: { width: 1.52, height: 2.13, depth: 0.61 }, // Real NASA galley: 60"×84"×24" (ISS Unity galley)
     geometry: 'kitchen_module', // L-shaped kitchen module
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 1.8, height: 2.1, depth: 1.2 } // NASA galley minimums
+    minDimensions: { width: 1.22, height: 2.13, depth: 0.61 }, // NASA galley minimums
+    realWorldRef: 'ISS Unity Node galley (60"×84"×24")'
   },
   ECLSS: { 
     color: '#22c55e', 
     icon: '💨', 
-    size: { width: 3.0, height: 2.3, depth: 2.5 },
+    size: { width: 0.63, height: 2.13, depth: 0.91 }, // Real NASA ECLSS rack: 25"×84"×36" (ISS rack standard)
     geometry: 'technical_rack', // Equipment rack with panels
     nasaCategory: 'TECHNICAL',
-    minDimensions: { width: 1.5, height: 2.1, depth: 1.0 } // NASA ECLSS rack minimums
+    minDimensions: { width: 0.63, height: 2.13, depth: 0.91 }, // NASA ECLSS rack standard
+    realWorldRef: 'ISS International Standard Payload Rack (ISPR)'
   },
   MEDICAL: { 
     color: '#ec4899', 
     icon: '🏥', 
-    size: { width: 2.5, height: 2.3, depth: 2.5 },
+    size: { width: 1.22, height: 2.13, depth: 0.91 }, // Real NASA medical: 48"×84"×36" (ISS medical rack + workspace)
     geometry: 'medical_bay', // Medical examination area
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 1.8, height: 2.1, depth: 2.0 } // NASA medical bay minimums
+    minDimensions: { width: 1.22, height: 2.13, depth: 0.91 }, // NASA medical bay minimums
+    realWorldRef: 'ISS Human Research Facility (HRF) + workspace'
   },
   MAINTENANCE: { 
     color: '#06b6d4', 
     icon: '🔧', 
-    size: { width: 2.5, height: 2.3, depth: 2.5 },
+    size: { width: 1.22, height: 2.13, depth: 1.22 }, // Real NASA maintenance: 48"×84"×48" (ISS maintenance area)
     geometry: 'workshop', // Workshop with tool storage
     nasaCategory: 'DIRTY',
-    minDimensions: { width: 1.5, height: 2.1, depth: 1.8 } // NASA maintenance minimums
+    minDimensions: { width: 1.22, height: 2.13, depth: 1.22 }, // NASA maintenance minimums
+    realWorldRef: 'ISS maintenance and stowage area'
   },
   CUSTOM_CAD: { 
     color: '#8b5cf6', 
@@ -105,58 +113,65 @@ const MODULE_TYPES_3D = {
   STOWAGE: {
     color: '#f97316',
     icon: '📦',
-    size: { width: 2.5, height: 2.3, depth: 3.5 },
+    size: { width: 0.63, height: 2.13, depth: 0.91 }, // Real NASA stowage: 25"×84"×36" (ISS CTB storage rack)
     geometry: 'storage_rack', // Multi-compartment storage
     nasaCategory: 'TECHNICAL',
-    minDimensions: { width: 1.2, height: 2.0, depth: 1.5 } // NASA storage minimums
+    minDimensions: { width: 0.63, height: 2.13, depth: 0.91 }, // NASA storage rack standard
+    realWorldRef: 'ISS Cargo Transfer Bag (CTB) rack'
   },
   RECREATION: {
     color: '#84cc16',
     icon: '🎮',
-    size: { width: 2.0, height: 2.2, depth: 2.0 },
+    size: { width: 1.22, height: 2.13, depth: 1.22 }, // Real NASA recreation: 48"×84"×48" (ISS cupola viewing area size)
     geometry: 'lounge_pod', // Comfortable lounge area
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 1.5, height: 2.1, depth: 1.5 } // NASA recreation minimums
+    minDimensions: { width: 1.22, height: 2.13, depth: 1.22 }, // NASA recreation minimums
+    realWorldRef: 'ISS Cupola observation area dimensions'
   },
   WORKSTATION: {
     color: '#64748b',
     icon: '💻',
-    size: { width: 2.2, height: 2.2, depth: 2.2 },
+    size: { width: 0.76, height: 2.13, depth: 0.61 }, // Real NASA workstation: 30"×84"×24" (ISS laptop workstation)
     geometry: 'workstation', // Desk with equipment
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 1.2, height: 2.1, depth: 0.9 } // NASA workstation minimums
+    minDimensions: { width: 0.76, height: 2.13, depth: 0.61 }, // NASA workstation minimums
+    realWorldRef: 'ISS Mobile Service System (MSS) workstation'
   },
   AIRLOCK: {
     color: '#0ea5e9',
     icon: '🚪',
-    size: { width: 2.0, height: 2.3, depth: 2.2 },
+    size: { width: 1.27, height: 1.91, depth: 1.27 }, // Real NASA airlock: 50"×75"×50" (ISS Quest airlock internal)
     geometry: 'airlock_chamber', // Pressurized airlock
     nasaCategory: 'TECHNICAL',
-    minDimensions: { width: 1.5, height: 2.1, depth: 1.5 } // NASA airlock minimums
+    minDimensions: { width: 1.27, height: 1.91, depth: 1.27 }, // NASA airlock minimums
+    realWorldRef: 'ISS Quest Joint Airlock internal dimensions'
   },
   GLOVEBOX: {
     color: '#8b5cf6',
     icon: '🧪',
-    size: { width: 1.4, height: 2.0, depth: 1.8 },
+    size: { width: 1.27, height: 0.89, depth: 0.89 }, // Real NASA glovebox: 50"×35"×35" (ISS Microgravity Science Glovebox)
     geometry: 'science_station', // Laboratory workstation
     nasaCategory: 'TECHNICAL',
-    minDimensions: { width: 1.0, height: 1.8, depth: 1.2 } // NASA glovebox minimums
+    minDimensions: { width: 1.27, height: 0.89, depth: 0.89 }, // NASA glovebox standard
+    realWorldRef: 'ISS Microgravity Science Glovebox (MSG)'
   },
   TRASH_MGMT: {
     color: '#6b7280',
     icon: '🗑️',
-    size: { width: 1.5, height: 2.0, depth: 2.0 },
+    size: { width: 0.76, height: 2.13, depth: 0.76 }, // Real NASA trash: 30"×84"×30" (ISS trash compactor size)
     geometry: 'compactor', // Waste compaction unit
     nasaCategory: 'DIRTY',
-    minDimensions: { width: 1.0, height: 1.8, depth: 1.2 } // NASA waste mgmt minimums
+    minDimensions: { width: 0.76, height: 2.13, depth: 0.76 }, // NASA waste mgmt minimums
+    realWorldRef: 'ISS Waste Collection System compactor'
   },
   COMMON_AREA: {
     color: '#f59e0b',
     icon: '👥',
-    size: { width: 3.0, height: 2.2, depth: 3.0 },
+    size: { width: 2.44, height: 2.13, depth: 2.44 }, // Real NASA common: 96"×84"×96" (ISS Unity node common area)
     geometry: 'community_space', // Open social area
     nasaCategory: 'CLEAN',
-    minDimensions: { width: 2.0, height: 2.1, depth: 2.0 } // NASA common area minimums
+    minDimensions: { width: 2.44, height: 2.13, depth: 2.44 }, // NASA common area minimums
+    realWorldRef: 'ISS Unity Node common area dimensions'
   }
 };
 
@@ -646,7 +661,7 @@ function ThreeScene({
 
   // Camera control state - adjust for Mars terrain scale
   const isMarsEnvironment = scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT';
-  const initialCameraDistance = isMarsEnvironment ? 150 : 25; // Further back for Mars terrain
+  const initialCameraDistance = isMarsEnvironment ? 120 : 25; // Optimized for 200m habitat site
   
   const cameraStateRef = useRef({
     isRotating: false,
@@ -655,7 +670,7 @@ function ThreeScene({
     previousMouse: { x: 0, y: 0 },
     spherical: new THREE.Spherical(initialCameraDistance, Math.PI / 4, 0),
     target: new THREE.Vector3(0, 0, 0),
-    panSpeed: isMarsEnvironment ? 0.1 : 0.02, // Faster panning for larger terrain
+    panSpeed: isMarsEnvironment ? 0.2 : 0.02, // Much faster panning for expanded 200m terrain
     rotateSpeed: 0.005
   });
 
@@ -762,8 +777,8 @@ function ThreeScene({
       if (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') {
         console.log('Loading Mars terrain for destination:', scenario.destination);
         
-        // Create fallback terrain while loading 3D tiles - realistic Mars terrain size
-        const fallbackGeometry = new THREE.PlaneGeometry(500, 500, 64, 64);
+        // Create fallback terrain while loading 3D tiles - expanded habitat construction site (200m×200m)
+        const fallbackGeometry = new THREE.PlaneGeometry(200, 200, 64, 64);
         const fallbackVertices = fallbackGeometry.attributes.position;
         
         // Add Mars-like height variation to fallback
@@ -833,8 +848,8 @@ function ThreeScene({
                 });
                 
                 if (sphere.radius > 0) {
-                  // Scale terrain to be realistic for habitat placement (about 500m x 500m area)
-                  const desiredTerrainSize = 500; // 500 meters
+                  // Scale terrain to be realistic for habitat construction site (200m x 200m area)
+                  const desiredTerrainSize = 200; // 200 meters - expanded construction site for large scenarios
                   const scale = desiredTerrainSize / (sphere.radius * 2);
                   tiles.group.scale.setScalar(scale);
                   
@@ -854,9 +869,9 @@ function ThreeScene({
                   // Place the plane at the same Y level as the terrain (Y=0) pointing upward
                   planeRef.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
                   
-                  console.log('✅ Mars terrain positioned:', {
+                  console.log('✅ Mars habitat site positioned:', {
                     scale: scale,
-                    terrainSize: desiredTerrainSize + 'm',
+                    terrainSize: desiredTerrainSize + 'm (habitat construction site)',
                     position: tiles.group.position,
                     rotation: tiles.group.rotation,
                     rotationDegrees: {
@@ -889,8 +904,8 @@ function ThreeScene({
         })();
         
       } else {
-        // Standard ground for non-Mars destinations
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        // Standard ground for non-Mars destinations - realistic habitat site size
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
         
         // Create texture loader
         const textureLoader = new THREE.TextureLoader();
@@ -948,9 +963,9 @@ function ThreeScene({
       // Set appropriate background for environment
       scene.background = new THREE.Color(0x000000); // Simple black sky for space
 
-      // Dynamic grid - larger for Mars terrain, smaller for other environments
-      const gridSize = (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') ? 500 : 50;
-      const gridDivisions = (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') ? 100 : 50;
+      // Dynamic grid - expanded habitat construction site scale (200m×200m)
+      const gridSize = 200; // Expanded 200m construction site for large scenarios
+      const gridDivisions = 100; // 2m grid squares for optimal visibility
       const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, envConfig.grid, envConfig.grid);
       gridHelper.material.transparent = true;
       gridHelper.material.opacity = 0.3;
@@ -960,7 +975,7 @@ function ThreeScene({
       
       scene.add(gridHelper);
       
-      console.log(`Grid helper created: size=${gridSize}m, divisions=${gridDivisions}, position Y=${gridHelper.position.y}`);
+      console.log(`Habitat site grid: ${gridSize}m × ${gridSize}m, ${gridDivisions} divisions (2m squares)`);
 
       // Mouse events
       function handleMouseDown(event: MouseEvent) {
@@ -1086,9 +1101,9 @@ function ThreeScene({
         event.preventDefault();
         const state = cameraStateRef.current;
         const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
-        // Adjust zoom limits based on environment scale
-        const minZoom = isMarsEnvironment ? 10 : 5;
-        const maxZoom = isMarsEnvironment ? 500 : 100;
+        // Adjust zoom limits for expanded 200m habitat construction site
+        const minZoom = isMarsEnvironment ? 8 : 5;   // Close-up view of modules
+        const maxZoom = isMarsEnvironment ? 300 : 100; // Full overview of expanded 200m site
         state.spherical.radius = Math.max(minZoom, Math.min(maxZoom, state.spherical.radius * zoomFactor));
         camera.position.setFromSpherical(state.spherical).add(state.target);
         camera.lookAt(state.target);
