@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose, Network } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -369,6 +369,135 @@ function createComplianceIndicator(position: THREE.Vector3, status: 'compliant' 
   return sprite;
 }
 
+// Create corridor visualization between modules
+function createCorridorVisualization(corridor: CorridorConnection): THREE.Group {
+  const corridorGroup = new THREE.Group();
+  
+  // Create main corridor tube
+  const start = new THREE.Vector3(...corridor.startPoint);
+  const end = new THREE.Vector3(...corridor.endPoint);
+  const direction = new THREE.Vector3().subVectors(end, start);
+  const length = direction.length();
+  
+  // Corridor tube geometry (1.5m diameter for crew passage)
+  const geometry = new THREE.CylinderGeometry(0.75, 0.75, length, 8);
+  
+  // Material based on corridor validation
+  let material: THREE.MeshBasicMaterial;
+  switch (corridor.validationType) {
+    case 'valid':
+      material = new THREE.MeshBasicMaterial({ 
+        color: 0x00aa00, 
+        transparent: true, 
+        opacity: 0.3,
+        wireframe: false
+      });
+      break;
+    case 'warning':
+      material = new THREE.MeshBasicMaterial({ 
+        color: 0xffaa00, 
+        transparent: true, 
+        opacity: 0.4,
+        wireframe: false
+      });
+      break;
+    case 'invalid':
+      material = new THREE.MeshBasicMaterial({ 
+        color: 0xff0000, 
+        transparent: true, 
+        opacity: 0.2,
+        wireframe: true
+      });
+      break;
+  }
+  
+  const corridorMesh = new THREE.Mesh(geometry, material);
+  
+  // Position and orient corridor
+  const center = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+  corridorMesh.position.copy(center);
+  
+  // Rotate to align with connection direction
+  const axis = new THREE.Vector3(0, 1, 0);
+  direction.normalize();
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(axis, direction);
+  corridorMesh.quaternion.copy(quaternion);
+  
+  corridorGroup.add(corridorMesh);
+  
+  // Add connection points (airlocks/docking ports)
+  const connectionPointGeometry = new THREE.SphereGeometry(0.3, 8, 6);
+  const connectionMaterial = new THREE.MeshBasicMaterial({ 
+    color: corridor.isValid ? 0x0066ff : 0xff6600,
+    transparent: true,
+    opacity: 0.8
+  });
+  
+  const startConnection = new THREE.Mesh(connectionPointGeometry, connectionMaterial);
+  startConnection.position.copy(start);
+  corridorGroup.add(startConnection);
+  
+  const endConnection = new THREE.Mesh(connectionPointGeometry, connectionMaterial);
+  endConnection.position.copy(end);
+  corridorGroup.add(endConnection);
+  
+  // Add corridor label with distance
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(0, 0, 256, 64);
+  
+  ctx.fillStyle = corridor.isValid ? '#00ff00' : '#ff6600';
+  ctx.font = '16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${corridor.length.toFixed(1)}m corridor`, 128, 25);
+  
+  if (corridor.issue) {
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(corridor.issue, 128, 45);
+  }
+  
+  const labelTexture = new THREE.CanvasTexture(canvas);
+  const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture, transparent: true });
+  const labelSprite = new THREE.Sprite(labelMaterial);
+  labelSprite.position.copy(center);
+  labelSprite.position.y += 2; // Float above corridor
+  labelSprite.scale.set(4, 1, 1);
+  
+  corridorGroup.add(labelSprite);
+  
+  return corridorGroup;
+}
+
+// Create warning indicator for unconnected modules
+function createUnconnectedIndicator(position: THREE.Vector3): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+  ctx.fillRect(0, 0, 64, 64);
+  
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '36px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚡', 32, 32);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(position.x, position.y + 4, position.z);
+  sprite.scale.set(2.5, 2.5, 1);
+  
+  return sprite;
+}
+
 // NASA Mission Duration Requirements Adjustment
 function getNASARequirementMultiplier(missionDays: number): { 
   redundancy: number; 
@@ -396,11 +525,139 @@ function getNASARequirementMultiplier(missionDays: number): {
   }
 }
 
+// Enhanced corridor connection analysis for habitat connectivity
+interface CorridorConnection {
+  id: string;
+  moduleA: string;
+  moduleB: string;
+  startPoint: [number, number, number];
+  endPoint: [number, number, number];
+  length: number;
+  isValid: boolean;
+  validationType: 'valid' | 'warning' | 'invalid';
+  issue?: string;
+  segments: Array<{
+    start: [number, number, number];
+    end: [number, number, number];
+    type: 'straight' | 'bend' | 'junction';
+  }>;
+}
+
+function analyzeCorridorConnections(objects: HabitatObject[]): {
+  corridors: CorridorConnection[];
+  unconnectedModules: string[];
+  connectionIssues: Array<{moduleA: string; moduleB: string; issue: string}>;
+} {
+  const corridors: CorridorConnection[] = [];
+  const connections = new Set<string>();
+  const connectionIssues: Array<{moduleA: string; moduleB: string; issue: string}> = [];
+
+  // Find modules that should be connected (within reasonable distance)
+  for (let i = 0; i < objects.length; i++) {
+    for (let j = i + 1; j < objects.length; j++) {
+      const moduleA = objects[i];
+      const moduleB = objects[j];
+      
+      const distance = Math.sqrt(
+        Math.pow(moduleA.position[0] - moduleB.position[0], 2) +
+        Math.pow(moduleA.position[2] - moduleB.position[2], 2)
+      );
+
+      // Create corridors for modules within 50 meters (reasonable connection distance)
+      if (distance <= 50 && distance > 2) {
+        // Calculate connection points (center of closest faces)
+        const deltaX = moduleB.position[0] - moduleA.position[0];
+        const deltaZ = moduleB.position[2] - moduleA.position[2];
+        
+        const startPoint: [number, number, number] = [
+          moduleA.position[0] + (deltaX > 0 ? moduleA.size.w_m/2 : -moduleA.size.w_m/2),
+          moduleA.position[1],
+          moduleA.position[2] + (deltaZ > 0 ? moduleA.size.l_m/2 : -moduleA.size.l_m/2)
+        ];
+        
+        const endPoint: [number, number, number] = [
+          moduleB.position[0] + (deltaX < 0 ? moduleB.size.w_m/2 : -moduleB.size.w_m/2),
+          moduleB.position[1],
+          moduleB.position[2] + (deltaZ < 0 ? moduleB.size.l_m/2 : -moduleB.size.l_m/2)
+        ];
+
+        // Validate connection based on NASA standards
+        let isValid = true;
+        let validationType: 'valid' | 'warning' | 'invalid' = 'valid';
+        let issue = '';
+
+        // Check connection length limits
+        if (distance > 30) {
+          isValid = false;
+          validationType = 'invalid';
+          issue = 'Corridor too long (>30m) - exceeds NASA standards';
+        } else if (distance > 20) {
+          validationType = 'warning';
+          issue = 'Long corridor (>20m) - consider intermediate support';
+        }
+
+        // Check critical module proximity requirements
+        const isCriticalA = ['AIRLOCK', 'HYGIENE', 'MEDICAL', 'ECLSS'].includes(moduleA.type);
+        const isCriticalB = ['AIRLOCK', 'HYGIENE', 'MEDICAL', 'ECLSS'].includes(moduleB.type);
+
+        if ((isCriticalA || isCriticalB) && distance > 15) {
+          isValid = false;
+          validationType = 'invalid';
+          issue = 'Critical life support modules must be within 15m';
+        }
+
+        // Check minimum corridor clearance
+        if (distance < 3) {
+          validationType = 'warning';
+          issue = 'Tight corridor - may restrict crew movement';
+        }
+
+        const corridor: CorridorConnection = {
+          id: `corridor-${moduleA.id}-${moduleB.id}`,
+          moduleA: moduleA.id,
+          moduleB: moduleB.id,
+          startPoint,
+          endPoint,
+          length: distance,
+          isValid,
+          validationType,
+          issue,
+          segments: [{
+            start: startPoint,
+            end: endPoint,
+            type: 'straight'
+          }]
+        };
+
+        corridors.push(corridor);
+        connections.add(moduleA.id);
+        connections.add(moduleB.id);
+
+        if (!isValid || validationType !== 'valid') {
+          connectionIssues.push({
+            moduleA: moduleA.id,
+            moduleB: moduleB.id,
+            issue
+          });
+        }
+      }
+    }
+  }
+
+  // Find unconnected modules (isolated modules are a safety concern)
+  const unconnectedModules = objects
+    .filter(obj => !connections.has(obj.id))
+    .map(obj => obj.id);
+
+  return { corridors, unconnectedModules, connectionIssues };
+}
+
 // Analyze compliance status for all modules
 function analyzeModuleCompliance(objects: HabitatObject[]): {
   violations: Array<{ moduleA: string, moduleB: string, distance: number, minDistance: number }>,
   moduleStatus: Record<string, 'compliant' | 'warning' | 'violation'>,
-  dangerZones: Array<{ moduleId: string, position: THREE.Vector3, radius: number }>
+  dangerZones: Array<{ moduleId: string, position: THREE.Vector3, radius: number }>,
+  corridorAnalysis: ReturnType<typeof analyzeCorridorConnections>
 } {
   const violations: Array<{ moduleA: string, moduleB: string, distance: number, minDistance: number }> = [];
   const moduleStatus: Record<string, 'compliant' | 'warning' | 'violation'> = {};
@@ -455,7 +712,10 @@ function analyzeModuleCompliance(objects: HabitatObject[]): {
     });
   });
   
-  return { violations, moduleStatus, dangerZones };
+  // Add corridor analysis to compliance check
+  const corridorAnalysis = analyzeCorridorConnections(objects);
+  
+  return { violations, moduleStatus, dangerZones, corridorAnalysis };
 }
 
 // NASA-compatible object structure
@@ -654,14 +914,18 @@ function ThreeScene({
   const dangerZonesRef = useRef<THREE.Group>(new THREE.Group());
   const complianceIndicatorsRef = useRef<THREE.Group>(new THREE.Group());
   
+  // Enhanced corridor system refs
+  const corridorsRef = useRef<THREE.Group>(new THREE.Group());
+  const unconnectedIndicatorsRef = useRef<THREE.Group>(new THREE.Group());
+  
   // Refs to store current state values for event handlers
   const selectedIdRef = useRef(selectedId);
   const setSelectedIdRef = useRef(setSelectedId);
   const setObjectsRef = useRef(setObjects);
 
-  // Camera control state - adjust for Mars terrain scale
+  // Camera control state - improved approach with fixed zoom
   const isMarsEnvironment = scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT';
-  const initialCameraDistance = isMarsEnvironment ? 120 : 25; // Optimized for 200m habitat site
+  const initialCameraDistance = isMarsEnvironment ? 120 : 25;
   
   const cameraStateRef = useRef({
     isRotating: false,
@@ -670,7 +934,7 @@ function ThreeScene({
     previousMouse: { x: 0, y: 0 },
     spherical: new THREE.Spherical(initialCameraDistance, Math.PI / 4, 0),
     target: new THREE.Vector3(0, 0, 0),
-    panSpeed: isMarsEnvironment ? 0.2 : 0.02, // Much faster panning for expanded 200m terrain
+    panSpeed: isMarsEnvironment ? 0.2 : 0.02,
     rotateSpeed: 0.005
   });
 
@@ -758,9 +1022,15 @@ function ThreeScene({
       dangerZonesRef.current = new THREE.Group();
       complianceIndicatorsRef.current = new THREE.Group();
       
+      // Initialize corridor system groups
+      corridorsRef.current = new THREE.Group();
+      unconnectedIndicatorsRef.current = new THREE.Group();
+      
       scene.add(violationLinesRef.current);
       scene.add(dangerZonesRef.current);
       scene.add(complianceIndicatorsRef.current);
+      scene.add(corridorsRef.current);
+      scene.add(unconnectedIndicatorsRef.current);
 
       // Lighting with dynamic colors
       const ambientLight = new THREE.AmbientLight(envConfig.ambientLight, 0.4);
@@ -1053,17 +1323,16 @@ function ThreeScene({
         if (state.isRotating) {
           state.spherical.theta -= deltaX * state.rotateSpeed;
           state.spherical.phi += deltaY * state.rotateSpeed;
-          // Restrict phi to prevent camera from going underground (more restrictive range)
+          // Restrict phi to prevent camera from going underground
           state.spherical.phi = Math.max(0.2, Math.min(Math.PI * 0.48, state.spherical.phi));
           
           // Update camera position and enforce ground plane constraint
           camera.position.setFromSpherical(state.spherical).add(state.target);
           
-          // Prevent camera from going underground (Y < minimum height)
-          const minHeight = 2.0; // Minimum 2 meters above ground
+          // Prevent camera from going underground
+          const minHeight = 2.0;
           if (camera.position.y < minHeight) {
             camera.position.y = minHeight;
-            // Recalculate spherical coordinates to match the clamped position
             const clampedPosition = camera.position.clone().sub(state.target);
             state.spherical.setFromVector3(clampedPosition);
           }
@@ -1113,67 +1382,28 @@ function ThreeScene({
       function handleWheel(event: WheelEvent) {
         event.preventDefault();
         const state = cameraStateRef.current;
+        
+        // Simple direct zoom - no sliding, no complex calculations
         const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
         
-        // Get cursor position for zoom-to-cursor functionality
-        const rect = renderer.domElement.getBoundingClientRect();
-        const mouse = new THREE.Vector2();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        // Set zoom limits based on environment
+        const minZoom = isMarsEnvironment ? 8 : 5;
+        const maxZoom = isMarsEnvironment ? 300 : 100;
         
-        // Create raycaster to find world position under cursor
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-        
-        // Find intersection with terrain/ground plane at Y=0
-        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const intersection = new THREE.Vector3();
-        raycaster.ray.intersectPlane(groundPlane, intersection);
-        
-        // Calculate zoom direction vector (from current target to cursor position)
-        // NOTE: Limited movement to preserve 3DTilesRendererJS LOD calculations
-        const zoomDirection = new THREE.Vector3().subVectors(intersection, state.target);
-        
-        // Adjust zoom limits for expanded 200m habitat construction site
-        const minZoom = isMarsEnvironment ? 8 : 5;   // Close-up view of modules
-        const maxZoom = isMarsEnvironment ? 300 : 100; // Full overview of expanded 200m site
-        
+        // Calculate new radius with constraints
         const oldRadius = state.spherical.radius;
         const newRadius = Math.max(minZoom, Math.min(maxZoom, oldRadius * zoomFactor));
         
-        // Calculate how much we're actually zooming
-        const actualZoomFactor = newRadius / oldRadius;
-        
-        // Alternative approach: Adjust spherical angles to simulate cursor zoom while keeping target stable
-        // This preserves 3DTilesRendererJS LOD quality by maintaining consistent target for tiles.setCamera()
-        const zoomIntensity = Math.abs(1 - actualZoomFactor);
-        
-        if (intersection && zoomDirection.length() > 0.1) {
-          // Calculate angle adjustment needed to "look toward" cursor position
-          const currentPos = new THREE.Vector3().setFromSpherical(state.spherical).add(state.target);
-          const desiredDirection = intersection.clone().sub(state.target).normalize();
-          const currentDirection = currentPos.clone().sub(state.target).normalize();
-          
-          // Calculate spherical coordinate adjustments for cursor-based zoom feel
-          const targetSpherical = new THREE.Spherical().setFromVector3(desiredDirection);
-          
-          // Smoothly interpolate angles toward cursor direction (but not too aggressively)
-          const angleBlend = Math.min(zoomIntensity * 0.1, 0.05); // Very gentle angle adjustment
-          state.spherical.theta = THREE.MathUtils.lerp(state.spherical.theta, targetSpherical.theta, angleBlend);
-          state.spherical.phi = THREE.MathUtils.lerp(state.spherical.phi, targetSpherical.phi, angleBlend);
-        }
-        
-        // Apply new zoom radius
+        // Apply new radius directly
         state.spherical.radius = newRadius;
         
-        // Update camera position - target stays stable for optimal 3DTiles LOD
+        // Update camera position - simple and direct
         camera.position.setFromSpherical(state.spherical).add(state.target);
         
-        // Prevent camera from going underground during zoom
-        const minHeight = 2.0; // Minimum 2 meters above ground
+        // Prevent camera from going underground
+        const minHeight = 2.0;
         if (camera.position.y < minHeight) {
           camera.position.y = minHeight;
-          // Recalculate spherical coordinates to match the clamped position
           const clampedPosition = camera.position.clone().sub(state.target);
           state.spherical.setFromVector3(clampedPosition);
         }
@@ -1349,6 +1579,10 @@ function ThreeScene({
     violationLinesRef.current.clear();
     dangerZonesRef.current.clear();
     complianceIndicatorsRef.current.clear();
+    
+    // Clear previous corridor visualization
+    corridorsRef.current.clear();
+    unconnectedIndicatorsRef.current.clear();
 
     // Add new meshes with compliance status
     objects.forEach((obj) => {
@@ -1401,6 +1635,22 @@ function ThreeScene({
     complianceAnalysis.dangerZones.forEach(zone => {
       const dangerZone = createDangerZone(zone.position, zone.radius);
       dangerZonesRef.current.add(dangerZone);
+    });
+    
+    // Add corridor visualizations between connected modules
+    complianceAnalysis.corridorAnalysis.corridors.forEach(corridor => {
+      const corridorVisualization = createCorridorVisualization(corridor);
+      corridorsRef.current.add(corridorVisualization);
+    });
+    
+    // Add warning indicators for unconnected modules
+    complianceAnalysis.corridorAnalysis.unconnectedModules.forEach(moduleId => {
+      const module = objects.find(o => o.id === moduleId);
+      if (module) {
+        const position = new THREE.Vector3(...module.position);
+        const indicator = createUnconnectedIndicator(position);
+        unconnectedIndicatorsRef.current.add(indicator);
+      }
     });
     
   }, [objects, selectedId, isInitialized]);
@@ -2592,6 +2842,105 @@ export default function NASAHabitatBuilder3D() {
                             +{complianceAnalysis.violations.length - 2} more...
                           </div>
                         )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Enhanced Corridor Connections Panel */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+              <Network className="w-4 h-4 text-blue-400" />
+              Pressurized Corridors
+            </h3>
+            <div className="space-y-2">
+              {(() => {
+                const complianceAnalysis = analyzeModuleCompliance(objects);
+                const corridorConnections = complianceAnalysis.corridorAnalysis?.corridors || [];
+                const corridorStats = {
+                  total: corridorConnections.length,
+                  valid: corridorConnections.filter(c => c.validationType === 'valid').length,
+                  warning: corridorConnections.filter(c => c.validationType === 'warning').length,
+                  invalid: corridorConnections.filter(c => c.validationType === 'invalid').length,
+                  unconnected: complianceAnalysis.corridorAnalysis?.unconnectedModules?.length || 0
+                };
+
+                const totalModules = objects.filter(obj => obj.userData?.isHabitatModule).length;
+                const connectionRate = totalModules > 0 
+                  ? Math.round(((totalModules - corridorStats.unconnected) / totalModules) * 100) 
+                  : 0;
+
+                return (
+                  <div>
+                    <div className="text-lg font-bold text-blue-300 flex items-center gap-2">
+                      {connectionRate}% Connected
+                      {connectionRate === 100 && corridorStats.invalid === 0 && <span className="text-sm">🚀</span>}
+                    </div>
+                    
+                    {/* Corridor Statistics */}
+                    <div className="mt-2 p-2 bg-card/20 rounded border border-border">
+                      <div className="text-xs text-gray-300 font-medium mb-1">Connection Status:</div>
+                      <div className="space-y-1 text-[10px]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-400 rounded"></div>
+                          <span className="text-green-300">Valid Corridors ({corridorStats.valid})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-yellow-400 rounded"></div>
+                          <span className="text-yellow-300">Long Corridors ({corridorStats.warning})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-red-400 rounded"></div>
+                          <span className="text-red-300">Invalid Corridors ({corridorStats.invalid})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-gray-500 rounded"></div>
+                          <span className="text-gray-300">Unconnected Modules ({corridorStats.unconnected})</span>
+                        </div>
+                      </div>
+                      <div className="text-[9px] text-gray-400 mt-2">
+                        🟢 &lt;15m optimal, 🟡 15-30m acceptable, 🔴 &gt;30m unsafe
+                        <br />💡 1.5m diameter pressurized walkways
+                        <br />🎯 Click modules to create connections
+                      </div>
+                    </div>
+
+                    {/* Corridor Details */}
+                    {corridorStats.total > 0 && (
+                      <div className="mt-2 p-2 bg-blue-900/20 rounded border border-blue-500/30">
+                        <div className="text-xs text-blue-300 font-medium mb-1">Active Connections:</div>
+                        {corridorConnections.slice(0, 3).map((corridor, idx) => {
+                          const moduleA = objects.find(obj => obj.id === corridor.moduleA);
+                          const moduleB = objects.find(obj => obj.id === corridor.moduleB);
+                          return (
+                            <div key={idx} className="text-[10px] ml-2 mt-1 flex items-center gap-1">
+                              <div className={`w-1 h-1 rounded ${
+                                corridor.validationType === 'valid' ? 'bg-green-400' :
+                                corridor.validationType === 'warning' ? 'bg-yellow-400' : 'bg-red-400'
+                              }`}></div>
+                              <span className="text-gray-300">
+                                {moduleA?.type || corridor.moduleA} ↔ {moduleB?.type || corridor.moduleB} 
+                                ({corridor.length.toFixed(1)}m)
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {corridorConnections.length > 3 && (
+                          <div className="text-[10px] text-gray-400 ml-2 mt-1">
+                            +{corridorConnections.length - 3} more corridors...
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {corridorStats.unconnected > 0 && (
+                      <div className="mt-2 p-2 bg-orange-900/20 rounded border border-orange-500/30">
+                        <div className="text-xs text-orange-300 font-medium">
+                          ⚠️ {corridorStats.unconnected} isolated module{corridorStats.unconnected > 1 ? 's' : ''} need connections
+                        </div>
                       </div>
                     )}
                   </div>
