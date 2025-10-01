@@ -250,21 +250,108 @@ function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: nu
   }
 }
 
-// Create composite materials for more realistic modules
-function createModuleMaterial(moduleConfig: any, isSelected: boolean): THREE.Material[] | THREE.Material {
-  const baseColor = isSelected ? 0xffff00 : moduleConfig.color;
+// Create composite materials for more realistic modules with compliance indicators
+function createModuleMaterial(moduleConfig: any, isSelected: boolean, complianceStatus?: 'compliant' | 'warning' | 'violation'): THREE.Material[] | THREE.Material {
+  let baseColor = isSelected ? 0xffff00 : moduleConfig.color;
+  
+  // Override color based on compliance status
+  if (!isSelected && complianceStatus) {
+    switch (complianceStatus) {
+      case 'compliant':
+        // Add subtle green glow to compliant modules
+        baseColor = new THREE.Color(moduleConfig.color).lerp(new THREE.Color(0x00ff00), 0.2).getHex();
+        break;
+      case 'warning':
+        // Add orange tint for warnings
+        baseColor = new THREE.Color(moduleConfig.color).lerp(new THREE.Color(0xff8800), 0.3).getHex();
+        break;
+      case 'violation':
+        // Add red tint for violations
+        baseColor = new THREE.Color(moduleConfig.color).lerp(new THREE.Color(0xff0000), 0.4).getHex();
+        break;
+    }
+  }
+  
+  const opacity = complianceStatus === 'violation' ? 0.9 : 0.8; // More opaque for violations
   
   // Create different materials for different faces
   const materials = [
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Right
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Left
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.9 }), // Top (brighter)
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.7 }), // Bottom (darker)
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 }), // Front
-    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: 0.8 })  // Back
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity }), // Right
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity }), // Left
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: opacity + 0.1 }), // Top (brighter)
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity: opacity - 0.1 }), // Bottom (darker)
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity }), // Front
+    new THREE.MeshLambertMaterial({ color: baseColor, transparent: true, opacity })  // Back
   ];
   
   return materials;
+}
+
+// Create violation line between two modules
+function createViolationLine(posA: THREE.Vector3, posB: THREE.Vector3): THREE.Line {
+  const geometry = new THREE.BufferGeometry().setFromPoints([posA, posB]);
+  const material = new THREE.LineBasicMaterial({ 
+    color: 0xff0000, 
+    linewidth: 3,
+    transparent: true,
+    opacity: 0.8
+  });
+  const line = new THREE.Line(geometry, material);
+  return line;
+}
+
+// Create danger zone around a dirty module
+function createDangerZone(position: THREE.Vector3, radius: number): THREE.Mesh {
+  const geometry = new THREE.SphereGeometry(radius, 16, 8);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xff4444,
+    transparent: true,
+    opacity: 0.1,
+    side: THREE.DoubleSide
+  });
+  const sphere = new THREE.Mesh(geometry, material);
+  sphere.position.copy(position);
+  return sphere;
+}
+
+// Create compliance indicator icon above module
+function createComplianceIndicator(position: THREE.Vector3, status: 'compliant' | 'warning' | 'violation'): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  
+  // Clear canvas
+  ctx.fillStyle = 'transparent';
+  ctx.fillRect(0, 0, 64, 64);
+  
+  // Draw status icon
+  ctx.font = '48px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  switch (status) {
+    case 'compliant':
+      ctx.fillStyle = '#00ff00';
+      ctx.fillText('✓', 32, 32);
+      break;
+    case 'warning':
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillText('⚠', 32, 32);
+      break;
+    case 'violation':
+      ctx.fillStyle = '#ff0000';
+      ctx.fillText('✗', 32, 32);
+      break;
+  }
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(position.x, position.y + 3, position.z); // Float above module
+  sprite.scale.set(2, 2, 1);
+  
+  return sprite;
 }
 
 // NASA Mission Duration Requirements Adjustment
@@ -292,6 +379,68 @@ function getNASARequirementMultiplier(missionDays: number): {
       description: "Long-duration mission: Enhanced requirements for crew health"
     };
   }
+}
+
+// Analyze compliance status for all modules
+function analyzeModuleCompliance(objects: HabitatObject[]): {
+  violations: Array<{ moduleA: string, moduleB: string, distance: number, minDistance: number }>,
+  moduleStatus: Record<string, 'compliant' | 'warning' | 'violation'>,
+  dangerZones: Array<{ moduleId: string, position: THREE.Vector3, radius: number }>
+} {
+  const violations: Array<{ moduleA: string, moduleB: string, distance: number, minDistance: number }> = [];
+  const moduleStatus: Record<string, 'compliant' | 'warning' | 'violation'> = {};
+  const dangerZones: Array<{ moduleId: string, position: THREE.Vector3, radius: number }> = [];
+  
+  // Initialize all modules as compliant
+  objects.forEach(obj => {
+    moduleStatus[obj.id] = 'compliant';
+  });
+  
+  // Check for clean/dirty separation violations
+  const cleanModules = objects.filter(obj => NASA_AREA_TYPES.CLEAN.includes(obj.type as any));
+  const dirtyModules = objects.filter(obj => NASA_AREA_TYPES.DIRTY.includes(obj.type as any));
+  
+  // Create danger zones around dirty modules
+  dirtyModules.forEach(dirty => {
+    const position = new THREE.Vector3(dirty.position[0], dirty.position[1], dirty.position[2]);
+    dangerZones.push({
+      moduleId: dirty.id,
+      position,
+      radius: 3.0 // 3-meter separation zone
+    });
+  });
+  
+  // Check violations between clean and dirty areas
+  cleanModules.forEach(clean => {
+    dirtyModules.forEach(dirty => {
+      const distance = Math.sqrt(
+        Math.pow(clean.position[0] - dirty.position[0], 2) +
+        Math.pow(clean.position[2] - dirty.position[2], 2)
+      );
+      
+      const minDistance = 3.0; // NASA minimum separation distance
+      
+      if (distance < minDistance) {
+        violations.push({
+          moduleA: clean.id,
+          moduleB: dirty.id,
+          distance,
+          minDistance
+        });
+        
+        // Mark both modules with appropriate severity
+        const severity = distance < minDistance * 0.5 ? 'violation' : 'warning';
+        moduleStatus[clean.id] = severity;
+        moduleStatus[dirty.id] = severity;
+      } else if (distance < minDistance * 1.2) {
+        // Close but acceptable - show warning
+        if (moduleStatus[clean.id] === 'compliant') moduleStatus[clean.id] = 'warning';
+        if (moduleStatus[dirty.id] === 'compliant') moduleStatus[dirty.id] = 'warning';
+      }
+    });
+  });
+  
+  return { violations, moduleStatus, dangerZones };
 }
 
 // NASA-compatible object structure
@@ -485,6 +634,11 @@ function ThreeScene({
   const dragOffsetRef = useRef(new THREE.Vector3());
   const animationIdRef = useRef<number>();
   
+  // Visual compliance system refs
+  const violationLinesRef = useRef<THREE.Group>(new THREE.Group());
+  const dangerZonesRef = useRef<THREE.Group>(new THREE.Group());
+  const complianceIndicatorsRef = useRef<THREE.Group>(new THREE.Group());
+  
   // Refs to store current state values for event handlers
   const selectedIdRef = useRef(selectedId);
   const setSelectedIdRef = useRef(setSelectedId);
@@ -583,6 +737,15 @@ function ThreeScene({
 
       // Add canvas to DOM
       mountRef.current.appendChild(renderer.domElement);
+      
+      // Initialize visual compliance system groups
+      violationLinesRef.current = new THREE.Group();
+      dangerZonesRef.current = new THREE.Group();
+      complianceIndicatorsRef.current = new THREE.Group();
+      
+      scene.add(violationLinesRef.current);
+      scene.add(dangerZonesRef.current);
+      scene.add(complianceIndicatorsRef.current);
 
       // Lighting with dynamic colors
       const ambientLight = new THREE.AmbientLight(envConfig.ambientLight, 0.4);
@@ -1051,6 +1214,11 @@ function ThreeScene({
           }
         }
         
+        // Cleanup visual compliance elements
+        violationLinesRef.current.clear();
+        dangerZonesRef.current.clear();
+        complianceIndicatorsRef.current.clear();
+        
         if (mountRef.current && renderer.domElement) {
           mountRef.current.removeChild(renderer.domElement);
         }
@@ -1063,12 +1231,15 @@ function ThreeScene({
     }
   }, [scenario.destination, setIsInitialized]); // Only reinitialize when destination changes, not when objects change
 
-  // Update objects in scene
+  // Update objects in scene with compliance visualization
   useEffect(() => {
     if (!sceneRef.current || !isInitialized) return;
 
-    console.log('Updating objects in scene, count:', objects.length);
+    console.log('Updating objects in scene with compliance analysis, count:', objects.length);
 
+    // Analyze compliance for all modules
+    const complianceAnalysis = analyzeModuleCompliance(objects);
+    
     // Remove existing meshes
     meshesRef.current.forEach((mesh) => {
       sceneRef.current!.remove(mesh);
@@ -1080,17 +1251,23 @@ function ThreeScene({
       }
     });
     meshesRef.current.clear();
+    
+    // Clear previous compliance visualization
+    violationLinesRef.current.clear();
+    dangerZonesRef.current.clear();
+    complianceIndicatorsRef.current.clear();
 
-    // Add new meshes
+    // Add new meshes with compliance status
     objects.forEach((obj) => {
       const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
       if (!moduleConfig) return;
 
       const isSelected = selectedId === obj.id;
+      const complianceStatus = complianceAnalysis.moduleStatus[obj.id];
       
       // Create realistic geometry using our new system
       const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
-      const material = createModuleMaterial(moduleConfig, isSelected);
+      const material = createModuleMaterial(moduleConfig, isSelected, complianceStatus);
 
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(...obj.position);
@@ -1102,7 +1279,37 @@ function ThreeScene({
 
       sceneRef.current!.add(mesh);
       meshesRef.current.set(obj.id, mesh);
+      
+      // Add compliance indicator above module (only for warnings and violations)
+      if (complianceStatus !== 'compliant') {
+        const position = new THREE.Vector3(...obj.position);
+        const indicator = createComplianceIndicator(position, complianceStatus);
+        complianceIndicatorsRef.current.add(indicator);
+      }
     });
+    
+    // Add violation lines between non-compliant modules
+    complianceAnalysis.violations.forEach(violation => {
+      const moduleA = objects.find(o => o.id === violation.moduleA);
+      const moduleB = objects.find(o => o.id === violation.moduleB);
+      
+      if (moduleA && moduleB) {
+        const posA = new THREE.Vector3(...moduleA.position);
+        const posB = new THREE.Vector3(...moduleB.position);
+        posA.y += 1; // Raise line above ground
+        posB.y += 1;
+        
+        const line = createViolationLine(posA, posB);
+        violationLinesRef.current.add(line);
+      }
+    });
+    
+    // Add danger zones around dirty modules
+    complianceAnalysis.dangerZones.forEach(zone => {
+      const dangerZone = createDangerZone(zone.position, zone.radius);
+      dangerZonesRef.current.add(dangerZone);
+    });
+    
   }, [objects, selectedId, isInitialized]);
 
   return (
@@ -2376,7 +2583,7 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
-          {/* NASA Compliance Panel */}
+          {/* Enhanced NASA Compliance Panel with Visual Controls */}
           <div className="p-3 border-b border-border">
             <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-400" />
@@ -2384,49 +2591,65 @@ export default function NASAHabitatBuilder3D() {
             </h3>
             <div className="space-y-2">
               {(() => {
-                // Real-time compliance check
-                const cleanModules = objects.filter(obj => 
-                  NASA_AREA_TYPES.CLEAN.includes(obj.type as any));
-                const dirtyModules = objects.filter(obj => 
-                  NASA_AREA_TYPES.DIRTY.includes(obj.type as any));
-                
-                let violations = 0;
-                let nearbyViolations: string[] = [];
-                
-                cleanModules.forEach(clean => {
-                  dirtyModules.forEach(dirty => {
-                    const distance = Math.sqrt(
-                      Math.pow(clean.position[0] - dirty.position[0], 2) +
-                      Math.pow(clean.position[2] - dirty.position[2], 2)
-                    );
-                    if (distance < 3.0) { // Within 3m is considered too close
-                      violations++;
-                      nearbyViolations.push(`${clean.type} near ${dirty.type}`);
-                    }
-                  });
-                });
-
-                const totalCompliance = Math.max(0, 100 - (violations * 20));
+                // Enhanced compliance analysis
+                const complianceAnalysis = analyzeModuleCompliance(objects);
+                const totalViolations = complianceAnalysis.violations.length;
+                const totalCompliance = Math.max(0, 100 - (totalViolations * 15));
                 const complianceColor = totalCompliance >= 80 ? 'text-green-400' :
                                       totalCompliance >= 60 ? 'text-yellow-400' : 'text-red-400';
 
+                const statusCounts = {
+                  compliant: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'compliant').length,
+                  warning: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'warning').length,
+                  violation: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'violation').length
+                };
+
                 return (
                   <div>
-                    <div className={`text-lg font-bold ${complianceColor}`}>
+                    <div className={`text-lg font-bold ${complianceColor} flex items-center gap-2`}>
                       {totalCompliance}% Compliant
+                      {totalCompliance === 100 && <span className="text-sm">🏆</span>}
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <div>Clean Areas: {cleanModules.length}</div>
-                      <div>Dirty Areas: {dirtyModules.length}</div>
-                      {violations > 0 && (
-                        <div className="text-red-300 mt-2">
-                          <div className="font-medium">⚠️ {violations} Separation Issues:</div>
-                          {nearbyViolations.slice(0, 2).map((violation, idx) => (
-                            <div key={idx} className="text-[10px] ml-2">• {violation}</div>
-                          ))}
+                    
+                    {/* Visual Legend */}
+                    <div className="mt-2 p-2 bg-card/20 rounded border border-border">
+                      <div className="text-xs text-gray-300 font-medium mb-1">3D Visual Indicators:</div>
+                      <div className="space-y-1 text-[10px]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-400 rounded"></div>
+                          <span className="text-green-300">Compliant ({statusCounts.compliant})</span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-orange-400 rounded"></div>
+                          <span className="text-orange-300">Warning ({statusCounts.warning})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-red-400 rounded"></div>
+                          <span className="text-red-300">Violation ({statusCounts.violation})</span>
+                        </div>
+                      </div>
+                      <div className="text-[9px] text-gray-400 mt-2">
+                        🔴 Red lines show separation violations
+                        <br />🟠 Orange zones show 3m safety areas
+                        <br />⚠️ Icons mark non-compliant modules
+                      </div>
                     </div>
+                    
+                    {totalViolations > 0 && (
+                      <div className="text-red-300 mt-2 p-2 bg-red-900/20 rounded border border-red-500/30">
+                        <div className="font-medium text-xs">⚠️ {totalViolations} Active Violations:</div>
+                        {complianceAnalysis.violations.slice(0, 2).map((violation, idx) => (
+                          <div key={idx} className="text-[10px] ml-2 mt-1">
+                            • {violation.distance.toFixed(1)}m separation (min: {violation.minDistance}m)
+                          </div>
+                        ))}
+                        {complianceAnalysis.violations.length > 2 && (
+                          <div className="text-[10px] text-gray-400 ml-2">
+                            +{complianceAnalysis.violations.length - 2} more...
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -2598,7 +2821,7 @@ export default function NASAHabitatBuilder3D() {
             }}
           />
 
-          {/* NASA Mission Info Overlay */}
+          {/* Enhanced NASA Mission Info with Compliance Status */}
           <div className="absolute top-6 right-6 glass-morphism rounded-xl p-4 shadow-2xl border border-blue-500/30 glow-blue">
             <div className="text-sm space-y-2">
               <div className="font-medium text-blue-300 flex items-center gap-2 text-shadow">
@@ -2610,6 +2833,24 @@ export default function NASAHabitatBuilder3D() {
                 <div>Duration: {scenario.mission_duration_days} days</div>
                 <div>Vehicle: {scenario.fairing.name}</div>
                 <div>Modules: {objects.length}</div>
+                
+                {/* Live Compliance Status */}
+                {(() => {
+                  const complianceAnalysis = analyzeModuleCompliance(objects);
+                  const totalViolations = complianceAnalysis.violations.length;
+                  const compliance = Math.max(0, 100 - (totalViolations * 15));
+                  
+                  return (
+                    <div className={`flex items-center gap-2 ${
+                      compliance >= 80 ? 'text-green-300' : 
+                      compliance >= 60 ? 'text-yellow-300' : 'text-red-300'
+                    }`}>
+                      {compliance >= 80 ? '✅' : compliance >= 60 ? '⚠️' : '❌'}
+                      NASA: {compliance}% Compliant
+                    </div>
+                  );
+                })()}
+                
                 {(scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') && (
                   <div className="text-orange-300">
                     🔴 Mars Terrain: NASA MSL Data
