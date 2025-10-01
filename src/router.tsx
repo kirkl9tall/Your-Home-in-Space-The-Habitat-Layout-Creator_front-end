@@ -2,9 +2,9 @@ import { createRouter, createRoute, createRootRoute } from '@tanstack/react-rout
 import { Layout } from './components/Layout'
 import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
 import DesignSystemDemo from './components/DesignSystemDemo'
-import CADStudio from './features/cad/CADStudio'
+
 import AnalysisPage from './app/Analysis/AnalysisPage'
-import { MarsDesignArea } from './components/MarsDesignArea'
+
 
 // Root route
 const rootRoute = createRootRoute({
@@ -63,25 +63,9 @@ const demoRoute = createRoute({
   component: DesignSystemDemo,
 })
 
-// CAD Studio route
-const cadRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/cad',
-  component: () => (
-    <div className="h-screen bg-background">
-      <CADStudio onSaveModule={(module: any) => {
-        console.log('CAD module saved:', module);
-      }} />
-    </div>
-  ),
-})
 
-// Mars Terrain Design route
-const marsDesignRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/mars-design',
-  component: MarsDesignArea,
-})
+
+
 
 // Create the route tree
 const routeTree = rootRoute.addChildren([
@@ -90,8 +74,6 @@ const routeTree = rootRoute.addChildren([
   analysisRoute,
   collectionsRoute,
   demoRoute,
-  cadRoute,
-  marsDesignRoute,
 ])
 
 // Create router

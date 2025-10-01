@@ -17,7 +17,7 @@ import { Layout, Scenario } from '@/lib/schemas';
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
 import ShapeBuilder from './ShapeBuilder';
-import CADShapeBuilder from './CADShapeBuilder';
+
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import AnalysisResults from '@/ui/AnalysisResults';
 
@@ -1444,7 +1444,7 @@ export default function NASAHabitatBuilder3D() {
     SCENARIO: 'nasa-habitat-scenario',
     OBJECTS: 'nasa-habitat-objects', 
     SELECTED_ID: 'nasa-habitat-selected-id',
-    CAD_DESIGNS: 'nasa-habitat-cad-designs',
+
     VALIDATION_RESULTS: 'nasa-habitat-validation-results',
     ACTIVE_TAB: 'nasa-habitat-active-tab'
   };
@@ -1487,14 +1487,14 @@ export default function NASAHabitatBuilder3D() {
   
   // State for collapsible sections
   const [showNasaFunctional, setShowNasaFunctional] = useState(true);
-  const [showCustomCad, setShowCustomCad] = useState(true);
+
   const [showNasaMission, setShowNasaMission] = useState(true);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [showModuleInspector, setShowModuleInspector] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'cad' | 'analyses'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'analyses'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -1515,15 +1515,7 @@ export default function NASAHabitatBuilder3D() {
   const [showCameraHelp, setShowCameraHelp] = useState(true);
   const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
   
-  // CAD Integration - Store imported CAD designs with persistence
-  const [cadDesigns, setCadDesigns] = useState<Array<{
-    id: string;
-    name: string;
-    shapes: any[];
-    bounds: { width: number; height: number; depth: number };
-    thumbnail?: string;
-  }>>(() => loadFromStorage(STORAGE_KEYS.CAD_DESIGNS, []));
-  
+
   const hoverPointRef = useRef<THREE.Vector3 | null>(null);
 
   // Initialize database
@@ -1556,10 +1548,6 @@ export default function NASAHabitatBuilder3D() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ACTIVE_TAB, activeTab);
   }, [activeTab]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
-  }, [cadDesigns]);
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -1748,9 +1736,7 @@ export default function NASAHabitatBuilder3D() {
     };
   }, [selectedId]);
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.CAD_DESIGNS, cadDesigns);
-  }, [cadDesigns]);
+
 
   // Load design from collections
   const handleLoadDesign = useCallback((savedDesign: SavedDesign) => {
@@ -2112,90 +2098,11 @@ export default function NASAHabitatBuilder3D() {
     return () => document.removeEventListener('click', handleGlobalClick);
   }, [contextMenu.visible]);
 
-  // CAD Integration Functions
-  const importFromCAD = useCallback(() => {
-    // This would typically load saved CAD designs from database/localStorage
-    // For now, let's simulate some sample CAD designs
-    const sampleCADDesigns = [
-      {
-        id: 'cad-1',
-        name: 'Custom Storage Module',
-        shapes: [
-          { type: 'box', width: 2, height: 2, depth: 1, position: [0, 0, 0] },
-          { type: 'cylinder', radius: 0.5, height: 2, position: [1, 0, 0] }
-        ],
-        bounds: { width: 3, height: 2, depth: 1 }
-      },
-      {
-        id: 'cad-2', 
-        name: 'Curved Living Space',
-        shapes: [
-          { type: 'torus', radius: 1.5, height: 0.3, position: [0, 0, 0] },
-          { type: 'sphere', radius: 1, position: [0, 1, 0] }
-        ],
-        bounds: { width: 3, height: 2, depth: 3 }
-      }
-    ];
-    
-    setCadDesigns(sampleCADDesigns);
-    alert('CAD designs imported! Check the module library for custom modules.');
-  }, []);
 
-  const exportToCAD = useCallback(() => {
-    if (objects.length === 0) {
-      alert('No modules to export to CAD. Add some modules first.');
-      return;
-    }
-    
-    // Convert current habitat objects to CAD format
-    const cadExport = {
-      name: `Habitat Export ${new Date().toISOString().split('T')[0]}`,
-      objects: objects.map(obj => ({
-        id: obj.id,
-        type: obj.type,
-        position: obj.position,
-        rotation: obj.rotation || [0, 0, 0],
-        scale: obj.scale || [1, 1, 1],
-        size: obj.size
-      })),
-      bounds: {
-        width: Math.max(...objects.map(o => o.position[0] + o.size.w_m)) - Math.min(...objects.map(o => o.position[0])),
-        height: Math.max(...objects.map(o => o.size.h_m)),
-        depth: Math.max(...objects.map(o => o.position[2] + o.size.l_m)) - Math.min(...objects.map(o => o.position[2]))
-      }
-    };
-    
-    // Export to JSON (could be sent to CAD system)
-    const blob = new Blob([JSON.stringify(cadExport, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'habitat-for-cad.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    alert('Habitat exported to CAD format!');
-  }, [objects]);
 
-  const createModuleFromCAD = useCallback((cadDesign: any) => {
-    const id = generateId('CUSTOM_CAD');
-    const newObject: HabitatObject = {
-      id,
-      type: 'CUSTOM_CAD' as any,
-      position: [0, cadDesign.bounds.height / 2, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      size: {
-        w_m: cadDesign.bounds.width,
-        h_m: cadDesign.bounds.height,
-        l_m: cadDesign.bounds.depth
-      }
-    };
-    
-    setObjects(prev => [...prev, newObject]);
-    setSelectedId(id);
-    alert(`Added custom CAD module: ${cadDesign.name}`);
-  }, [generateId]);
+
+
+
 
   // Create a new empty design
   const createNewDesign = () => {
@@ -2287,18 +2194,7 @@ export default function NASAHabitatBuilder3D() {
               <span className="font-medium">Design Area</span>
             </Button>
             
-            <Button 
-              onClick={() => setActiveTab('cad')} 
-              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'cad' 
-                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
-                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
-              } border`}
-            >
-              <Settings className="w-4 h-4" />
-              <span className="font-medium">Laboratory CAD</span>
-            </Button>
-            
+
             <Button 
               onClick={() => setActiveTab('collections')} 
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
@@ -2547,45 +2443,7 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
-          {/* Custom CAD Modules - Scrollable */}
-          {cadDesigns.length > 0 && (
-            <div className="p-3 border-b border-border">
-              <h3 
-                className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
-                onClick={() => setShowCustomCad(!showCustomCad)}
-              >
-                {showCustomCad ? (
-                  <Minus className="w-4 h-4" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                Custom CAD Modules
-              </h3>
-              {showCustomCad && (
-              <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                <div className="grid grid-cols-3 gap-2">
-                  {cadDesigns.map((cadDesign) => (
-                    <div
-                      key={cadDesign.id}
-                      className="group flex flex-col items-center gap-2 p-2 bg-card/40 hover:bg-orange-500/20 border border-border hover:border-orange-500/60 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
-                      onClick={() => createModuleFromCAD(cadDesign)}
-                    >
-                      <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white text-sm shadow-lg flex-shrink-0">
-                        <Settings className="w-4 h-4" />
-                      </div>
-                      <div className="text-center min-w-0 w-full">
-                        <div className="font-medium text-foreground text-xs truncate">{cadDesign.name}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {cadDesign.bounds.width.toFixed(1)}×{cadDesign.bounds.height.toFixed(1)}×{cadDesign.bounds.depth.toFixed(1)}m
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              )}
-            </div>
-          )}
+
 
           {/* NASA Compliance Assistant */}
           <div className="p-3 border-b border-border">
@@ -2664,14 +2522,7 @@ export default function NASAHabitatBuilder3D() {
                 <Shapes className="w-3 h-3 mr-1" />
                 Custom Shape Builder
               </Button>
-              <Button 
-                onClick={() => setActiveTab('cad')} 
-                className="w-full btn-space text-xs py-2 h-8"
-                size="sm"
-              >
-                <Settings className="w-3 h-3 mr-1" />
-                CAD Laboratory
-              </Button>
+
             </div>
             )}
           </div>
@@ -3029,19 +2880,6 @@ export default function NASAHabitatBuilder3D() {
           />
         ) : activeTab === 'shapes' ? (
           <ShapeBuilder />
-        ) : activeTab === 'cad' ? (
-          <CADShapeBuilder 
-            onBackToDesign={() => setActiveTab('design')} 
-            onSaveDesign={(design) => {
-              setCadDesigns(prev => [...prev, {
-                id: Date.now().toString(),
-                name: design.name,
-                shapes: design.shapes,
-                bounds: design.bounds
-              }]);
-              alert(`CAD design "${design.name}" is now available as a custom module!`);
-            }}
-          />
         ) : activeTab === 'analyses' ? (
           <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
             <div className="max-w-6xl mx-auto">
