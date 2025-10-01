@@ -4,6 +4,7 @@ import NASAHabitatBuilder3D from './components/NASAHabitatBuilder3D'
 import DesignSystemDemo from './components/DesignSystemDemo'
 import CADStudio from './features/cad/CADStudio'
 import AnalysisPage from './app/Analysis/AnalysisPage'
+import { MarsDesignArea } from './components/MarsDesignArea'
 
 // Root route
 const rootRoute = createRootRoute({
@@ -75,6 +76,13 @@ const cadRoute = createRoute({
   ),
 })
 
+// Mars Terrain Design route
+const marsDesignRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/mars-design',
+  component: MarsDesignArea,
+})
+
 // Create the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -83,6 +91,7 @@ const routeTree = rootRoute.addChildren([
   collectionsRoute,
   demoRoute,
   cadRoute,
+  marsDesignRoute,
 ])
 
 // Create router
