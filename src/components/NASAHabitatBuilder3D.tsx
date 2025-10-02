@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, Shapes, PanelLeft, PanelLeftClose, Network } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -58,7 +58,6 @@ import { Layout, Scenario } from '@/lib/schemas';
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
-import ShapeBuilder from './ShapeBuilder';
 
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import AnalysisResults from '@/ui/AnalysisResults';
@@ -3037,14 +3036,7 @@ export default function NASAHabitatBuilder3D() {
                 <Plus className="w-3 h-3 mr-1" />
                 Add Sample Module
               </Button>
-              <Button 
-                onClick={() => setActiveTab('shapes')} 
-                className="w-full btn-space text-xs py-2 h-8"
-                size="sm"
-              >
-                <Shapes className="w-3 h-3 mr-1" />
-                Custom Shape Builder
-              </Button>
+
 
             </div>
             )}
@@ -3500,8 +3492,6 @@ export default function NASAHabitatBuilder3D() {
             onLoadDesign={handleLoadDesign}
             onSaveSuccess={() => setActiveTab('design')}
           />
-        ) : activeTab === 'shapes' ? (
-          <ShapeBuilder />
         ) : activeTab === 'analyses' ? (
           <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
             <div className="max-w-6xl mx-auto">
@@ -3588,9 +3578,7 @@ export default function NASAHabitatBuilder3D() {
               )}
             </div>
           </div>
-        ) : (
-          <ShapeBuilder />
-        )}
+        ) : null}
       </div>
 
       {/* Context Menu */}
