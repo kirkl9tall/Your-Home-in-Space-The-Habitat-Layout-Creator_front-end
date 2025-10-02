@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -58,6 +58,7 @@ import { Layout, Scenario } from '@/lib/schemas';
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
+import CADApp from '../../CAD/App';
 
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import AnalysisResults from '@/ui/AnalysisResults';
@@ -2035,11 +2036,16 @@ export default function NASAHabitatBuilder3D() {
   const [showSidebar, setShowSidebar] = useState(true);
   
   // New state for save/load functionality
-  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'shapes' | 'analyses'>(() => 
+  const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'cad' | 'analyses'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  
+  // CAD Builder state - simplified for integration with actual CAD system
+  const [customCADShapes, setCustomCADShapes] = useState<any[]>(() => 
+    loadFromStorage('nasa-habitat-cad-shapes', [])
+  );
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -2089,6 +2095,10 @@ export default function NASAHabitatBuilder3D() {
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.ACTIVE_TAB, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    saveToStorage('nasa-habitat-cad-shapes', customCADShapes);
+  }, [customCADShapes]);
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -2639,6 +2649,34 @@ export default function NASAHabitatBuilder3D() {
     return () => document.removeEventListener('click', handleGlobalClick);
   }, [contextMenu.visible]);
 
+  // CAD Builder handlers - simplified for your working CAD system
+  const handleSaveCADShape = useCallback((shape: any) => {
+    setCustomCADShapes(prev => [...prev, shape]);
+  }, []);
+
+  const handleUseCADShape = useCallback((shape: any) => {
+    // Convert CAD shape to habitat module
+    const id = generateId('CUSTOM_CAD');
+    const newObject: HabitatObject = {
+      id,
+      type: 'CUSTOM_CAD',
+      position: [0, 1, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      size: {
+        w_m: 2,
+        l_m: 2,
+        h_m: 2
+      }
+    };
+    
+    setObjects(prev => [...prev, newObject]);
+    setSelectedId(id);
+    setActiveTab('design'); // Switch back to design tab
+    
+    alert(`Custom shape "${shape.name || 'Custom Module'}" added to design area!`);
+  }, [generateId]);
+
 
 
 
@@ -2746,6 +2784,18 @@ export default function NASAHabitatBuilder3D() {
             >
               <Folder className="w-4 h-4" />
               <span className="font-medium">Collections</span>
+            </Button>
+            
+            <Button 
+              onClick={() => setActiveTab('cad')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'cad' 
+                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
+                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
+              } border`}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="font-medium">CAD Builder</span>
             </Button>
             
             <Button 
@@ -2984,7 +3034,46 @@ export default function NASAHabitatBuilder3D() {
             )}
           </div>
 
-
+          {/* Custom CAD Shapes */}
+          <div className="p-3 border-b border-border">
+            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+              <Settings className="w-4 h-4 text-purple-400" />
+              Custom CAD Builder
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Design custom habitat modules with professional 3D modeling tools
+            </p>
+            {customCADShapes.length > 0 && (
+              <div className="space-y-2 max-h-32 overflow-y-auto mb-3">
+                {customCADShapes.map((shape, index) => (
+                  <div
+                    key={shape.id || index}
+                    onClick={() => handleUseCADShape(shape)}
+                    className="group flex items-center gap-2 p-2 bg-card/40 hover:bg-purple-600/20 border border-purple-500/40 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
+                  >
+                    <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center text-white text-sm flex-shrink-0">
+                      🔧
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground text-xs truncate">
+                        {shape.name || `Custom Shape ${index + 1}`}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Custom Module
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              onClick={() => setActiveTab('cad')}
+              className="w-full text-xs h-8 bg-purple-600/80 hover:bg-purple-600 flex items-center gap-2"
+            >
+              <Settings className="w-3 h-3" />
+              Open CAD Builder
+            </Button>
+          </div>
 
           {/* NASA Compliance Assistant */}
           <div className="p-3 border-b border-border">
@@ -3511,6 +3600,30 @@ export default function NASAHabitatBuilder3D() {
             onLoadDesign={handleLoadDesign}
             onSaveSuccess={() => setActiveTab('design')}
           />
+        ) : activeTab === 'cad' ? (
+          <div className="flex-1 relative">
+            {/* CAD Header */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Button onClick={() => setActiveTab('design')} className="flex items-center gap-2">
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Design
+                  </Button>
+                  <div className="h-6 w-px bg-border"></div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    CAD Builder
+                  </h2>
+                </div>
+              </div>
+            </div>
+            
+            {/* Your actual CAD App */}
+            <div className="h-full pt-20">
+              <CADApp />
+            </div>
+          </div>
         ) : activeTab === 'analyses' ? (
           <div className="flex-1 bg-gradient-to-br from-purple-950/20 via-transparent to-pink-950/20 p-6">
             <div className="max-w-6xl mx-auto">

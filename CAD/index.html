@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CAD Labo Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+        color-scheme: dark;
+
+        /* New Modern Color Palette */
+        --color-background: #111317;
+        --color-panel: #1C1F24;
+        --color-panel-light: #2A2F36;
+        --color-header: #1C1F24;
+        --color-border: #303640;
+        --color-border-light: #454c56;
+        
+        --color-accent: #00aaff;
+        --color-accent-hover: #33bbff;
+
+        --color-text-primary: #f0f2f5;
+        --color-text-secondary: #8a929c;
+        --color-text-disabled: #545a63;
+        
+        --color-success: #28a745;
+        --color-error: #e53e3e;
+        --color-info: #00aaff;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      body {
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        margin: 0;
+        background-color: var(--color-background);
+        color: var(--color-text-primary);
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-border-light);
+      }
+      /* New Animations */
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.3s ease-out forwards;
+      }
+      @keyframes fade-in-scale {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .animate-fade-in-scale {
+        animation: fade-in-scale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slide-in-from-left {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .animate-slide-in-from-left {
+        animation: slide-in-from-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slide-in-from-right {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      .animate-slide-in-from-right {
+        animation: slide-in-from-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slide-in-from-bottom {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-slide-in-from-bottom {
+        animation: slide-in-from-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "three": "https://aistudiocdn.com/three@^0.180.0",
+    "@react-three/drei": "https://aistudiocdn.com/@react-three/drei@^10.7.6",
+    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
+    "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.3.0",
+    "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
+    "three-stdlib": "https://aistudiocdn.com/three-stdlib@^2.36.0",
+    "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

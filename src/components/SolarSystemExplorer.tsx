@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Info, Play, RotateCcw } from 'lucide-react';
+import { ChevronLeft, Info, Play, RotateCcw, ArrowLeft, Target, Globe, Rocket } from 'lucide-react';
 import { Destination } from '@/lib/schemas';
 
 // Realistic planetary data based on NASA specifications
@@ -31,6 +31,14 @@ interface CelestialBody {
   habitability: 'Unsuitable' | 'Challenging' | 'Possible' | 'Ideal';
   description: string;
   missionType?: string;
+}
+
+interface Planet {
+  id: string;
+  name: string;
+  radius: number;
+  destination: Destination;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 }
 
 interface SolarSystemExplorerProps {
@@ -181,15 +189,29 @@ const MISSION_TARGETS = SOLAR_SYSTEM.filter(body => body.destination);
 
 export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDestination }: SolarSystemExplorerProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const planetsRef = useRef<{[key: string]: {group: THREE.Group}}>({});
 
   const [selectedBody, setSelectedBody] = useState<string | null>(null);
   const [hoveredBody, setHoveredBody] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionProgress, setTransitionProgress] = useState(0);
+  const [selectedPlanet, setSelectedPlanet] = useState<Planet | null>(null);
+  const [hoveredPlanet, setHoveredPlanet] = useState<Planet | null>(null);
+  
+  // Create celestial meshes storage
+  const celestialMeshes: {[key: string]: THREE.Group} = {};
+
+  // Distance scale for visualization
+  const DISTANCE_SCALE = 0.1;
+  
+  // Create PLANETS array from MISSION_TARGETS for compatibility
+  const PLANETS = MISSION_TARGETS as Planet[];
 
   // Initialize Three.js scene with NASA Eyes realism
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!mountRef.current) return;
 
     // Scene setup with realistic space environment
     const scene = new THREE.Scene();
@@ -198,11 +220,12 @@ export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDesti
     // Camera setup with NASA Eyes-style perspective
     const camera = new THREE.PerspectiveCamera(
       45, // Narrower FOV for more realistic view
-      sceneRef.current.clientWidth / sceneRef.current.clientHeight,
+      mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.01,
       10000 // Extended far plane for solar system scale
     );
     camera.position.set(0, 15, 30); // Closer initial view
+    cameraRef.current = camera;
     
     // Renderer setup with enhanced quality
     const renderer = new THREE.WebGLRenderer({ 
@@ -210,12 +233,12 @@ export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDesti
       alpha: true,
       powerPreference: "high-performance"
     });
-    renderer.setSize(sceneRef.current.clientWidth, sceneRef.current.clientHeight);
+    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    sceneRef.current.appendChild(renderer.domElement);
+    mountRef.current.appendChild(renderer.domElement);
     
     // Realistic starfield background
     const starGeometry = new THREE.BufferGeometry();
@@ -386,7 +409,36 @@ export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDesti
       
       scene.add(bodyGroup);
       celestialMeshes[body.id] = bodyGroup;
-    });  // Handle planet selection and transition NASA Eyes style
+      
+      // Store planet references for transitions
+      if (body.destination) {
+        planetsRef.current[body.id] = { group: bodyGroup };
+      }
+    });
+
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate);
+      
+      // Rotate planets
+      Object.values(celestialMeshes).forEach((bodyGroup, index) => {
+        bodyGroup.rotation.y += 0.001 + (index * 0.0002);
+      });
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+
+    // Cleanup function
+    return () => {
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  // Handle planet selection and transition NASA Eyes style
   const handlePlanetTransition = (planet: Planet) => {
     if (isTransitioning || !cameraRef.current) return;
 
@@ -436,7 +488,7 @@ export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDesti
         // Transition complete - switch to habitat builder
         console.log(`✅ Landed on ${planet.name}! Switching to habitat builder...`);
         setTimeout(() => {
-          onPlanetSelect(planet.destination);
+          onDestinationSelect(planet.destination);
         }, 500);
       }
     };
@@ -589,3 +641,5 @@ export function SolarSystemExplorer({ onDestinationSelect, onClose, currentDesti
     </div>
   );
 }
+
+export default SolarSystemExplorer;
