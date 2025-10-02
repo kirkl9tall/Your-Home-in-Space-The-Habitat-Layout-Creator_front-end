@@ -1129,7 +1129,7 @@ function ThreeScene({
 
   // Camera control state - improved approach with fixed zoom
   const isMarsEnvironment = scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT';
-  const initialCameraDistance = isMarsEnvironment ? 120 : 25;
+  const initialCameraDistance = isMarsEnvironment ? 300 : isLunarEnvironment ? 200 : 25; // Much higher for large terrain
   
   const cameraStateRef = useRef({
     isRotating: false,
@@ -1180,7 +1180,7 @@ function ThreeScene({
         75, 
         mountRef.current.clientWidth / mountRef.current.clientHeight, 
         0.1, 
-        1000
+        5000  // Extended far plane for large terrain exploration
       );
       cameraRef.current = camera;
       
@@ -1251,17 +1251,26 @@ function ThreeScene({
       if (scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') {
         console.log('Loading Mars terrain for destination:', scenario.destination);
         
-        // Create fallback terrain while loading 3D tiles - expanded habitat construction site (200m×200m)
-        const fallbackGeometry = new THREE.PlaneGeometry(200, 200, 64, 64);
+        // Create expanded fallback terrain - large Mars exploration area (2000m×2000m)
+        const fallbackGeometry = new THREE.PlaneGeometry(2000, 2000, 256, 256);
         const fallbackVertices = fallbackGeometry.attributes.position;
         
-        // Add Mars-like height variation to fallback
+        // Add realistic large-scale Mars-like terrain features
         for (let i = 0; i < fallbackVertices.count; i++) {
           const x = fallbackVertices.getX(i);
           const z = fallbackVertices.getZ(i);
-          const y = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 1.5 + 
-                   Math.sin(x * 0.1) * 0.5 + 
-                   Math.random() * 0.3;
+          
+          // Large geological features (craters, ridges)
+          const majorFeatures = Math.sin(x * 0.001) * Math.cos(z * 0.001) * 25.0;
+          // Medium terrain variation (hills, valleys)
+          const mediumTerrain = Math.sin(x * 0.005) * Math.cos(z * 0.005) * 12.0;
+          // Small surface features (rocks, dunes)
+          const smallFeatures = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 4.0;
+          // Fine detail (surface roughness)
+          const surfaceDetail = Math.sin(x * 0.08) * Math.cos(z * 0.08) * 1.5 + 
+                               Math.random() * 0.5;
+          
+          const y = majorFeatures + mediumTerrain + smallFeatures + surfaceDetail;
           fallbackVertices.setY(i, y);
         }
         fallbackGeometry.computeVertexNormals();
@@ -1303,11 +1312,19 @@ function ThreeScene({
             if (testResponse.ok) {
               const { TilesRenderer } = await import('3d-tiles-renderer');
               
-              console.log('NASA data accessible, loading 3D tiles...');
+              console.log('NASA data accessible, loading enhanced 3D tiles...');
               const tiles = new TilesRenderer(tilesUrl);
-              // Note: fetchOptions property may not exist in current version
-              // tiles.fetchOptions.mode = 'cors';
-              tiles.errorTarget = 12;
+              
+              // Enhanced 3DTilesRenderer configuration for large terrain
+              tiles.errorTarget = 8;          // Higher quality for large exploration area
+              tiles.errorThreshold = 40;      // Balanced performance vs quality
+              tiles.maxDepth = 18;           // Allow deeper subdivision for detail
+              tiles.displayActiveTiles = false; // Disable debug visualization
+              
+              // Performance optimization for large terrain
+              tiles.lruCache.minSize = 900;
+              tiles.lruCache.maxSize = 1500;  // Increased cache for large area
+              tiles.lruCache.unloadPercent = 0.05;
               
               tiles.addEventListener('load-tile-set', () => {
                 console.log('✅ NASA Mars terrain loaded successfully!');
@@ -1322,8 +1339,8 @@ function ThreeScene({
                 });
                 
                 if (sphere.radius > 0) {
-                  // Scale terrain to be realistic for habitat construction site (200m x 200m area)
-                  const desiredTerrainSize = 200; // 200 meters - expanded construction site for large scenarios
+                  // Scale terrain for massive Mars exploration area (2000m x 2000m)
+                  const desiredTerrainSize = 2000; // 2 kilometers - massive exploration and construction area
                   const scale = desiredTerrainSize / (sphere.radius * 2);
                   tiles.group.scale.setScalar(scale);
                   
@@ -1343,11 +1360,13 @@ function ThreeScene({
                   // Place the plane at the same Y level as the terrain (Y=0) pointing upward
                   planeRef.current = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
                   
-                  console.log('✅ Mars habitat site positioned:', {
+                  console.log('🌍 Massive Mars exploration area configured:', {
                     scale: scale,
-                    terrainSize: desiredTerrainSize + 'm (habitat construction site)',
+                    terrainSize: desiredTerrainSize + 'm × ' + desiredTerrainSize + 'm',
+                    explorationArea: (desiredTerrainSize/1000).toFixed(1) + ' km²',
                     position: tiles.group.position,
                     rotation: tiles.group.rotation,
+                    dataSource: 'NASA MSL Curiosity Rover - Dingo Gap',
                     rotationDegrees: {
                       x: (tiles.group.rotation.x * 180 / Math.PI),
                       y: (tiles.group.rotation.y * 180 / Math.PI), 
