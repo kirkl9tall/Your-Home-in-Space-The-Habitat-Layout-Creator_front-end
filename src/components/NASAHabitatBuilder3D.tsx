@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +11,46 @@ import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, M
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
+
+// GLTF Model paths for different module types
+const MODULE_3D_MODELS = {
+  'CREW_SLEEP': '/models/crew-sleep-pod.glb',
+  'FOOD_PREP': '/models/kitchen-module.glb', 
+  'MEDICAL': '/models/medical-bay.glb',
+  'WORKSTATION': '/models/workstation.glb',
+  'COMMON_AREA': '/models/common-area.glb',
+  'RECREATION': '/models/recreation-room.glb',
+  'EXERCISE': '/models/gym-module.glb',
+  'HYGIENE': '/models/hygiene-station.glb',
+  'WASTE': '/models/waste-management.glb',
+  'MAINTENANCE': '/models/maintenance-bay.glb',
+  'TRASH_MGMT': '/models/trash-compactor.glb',
+  'ECLSS': '/models/life-support-rack.glb',
+  'STOWAGE': '/models/storage-rack.glb',
+  'AIRLOCK': '/models/airlock-chamber.glb',
+  'GLOVEBOX': '/models/science-glovebox.glb',
+  'CUSTOM_CAD': '/models/custom-module.glb'
+} as const;
+
+// Fallback geometry types for when GLTF models aren't available
+const FALLBACK_GEOMETRIES = {
+  'CREW_SLEEP': 'sleep_pod',
+  'FOOD_PREP': 'kitchen_module', 
+  'MEDICAL': 'medical_bay',
+  'WORKSTATION': 'workstation',
+  'COMMON_AREA': 'rounded_box',
+  'RECREATION': 'community_space',
+  'EXERCISE': 'gym_module',
+  'HYGIENE': 'cylinder',
+  'WASTE': 'compactor',
+  'MAINTENANCE': 'workshop',
+  'TRASH_MGMT': 'compactor',
+  'ECLSS': 'technical_rack',
+  'STOWAGE': 'storage_rack',
+  'AIRLOCK': 'airlock_chamber',
+  'GLOVEBOX': 'science_station',
+  'CUSTOM_CAD': 'rounded_box'
+} as const;
 
 import { postAnalyzeRaw } from '@/api/analyzer';
 import { Layout, Scenario } from '@/lib/schemas';
@@ -179,7 +221,164 @@ function snap(n: number, step = 0.5) {
   return Math.round(n / step) * step;
 }
 
-// Create realistic 3D geometries for different NASA modules
+// Initialize GLTF and DRACO loaders
+const gltfLoader = new GLTFLoader();
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('/draco/'); // Set path to DRACO decoder
+gltfLoader.setDRACOLoader(dracoLoader);
+
+// Cache for loaded GLTF models to avoid reloading
+const modelCache = new Map<string, THREE.Group>();
+
+// Load GLTF model for a module type with fallback to procedural geometry
+async function loadModuleModel(
+  moduleType: keyof typeof MODULE_3D_MODELS,
+  size: { w_m: number; l_m: number; h_m: number }
+): Promise<THREE.Object3D> {
+  const modelPath = MODULE_3D_MODELS[moduleType];
+  
+  // Check cache first
+  if (modelCache.has(moduleType)) {
+    const cachedModel = modelCache.get(moduleType)!;
+    const clonedModel = cachedModel.clone();
+    scaleModelToSize(clonedModel, size);
+    return clonedModel;
+  }
+  
+  try {
+    console.log(`🚀 Loading GLTF model for ${moduleType}: ${modelPath}`);
+    
+    const gltf = await new Promise<any>((resolve, reject) => {
+      gltfLoader.load(
+        modelPath,
+        (gltf) => resolve(gltf),
+        (progress) => {
+          console.log(`Loading progress for ${moduleType}: ${(progress.loaded / progress.total * 100)}%`);
+        },
+        (error) => reject(error)
+      );
+    });
+    
+    const model = gltf.scene;
+    
+    // Cache the original model
+    modelCache.set(moduleType, model.clone());
+    
+    // Scale and prepare the model
+    scaleModelToSize(model, size);
+    setupModelMaterials(model);
+    
+    console.log(`✅ Successfully loaded GLTF model for ${moduleType}`);
+    return model;
+    
+  } catch (error) {
+    console.warn(`⚠️ Failed to load GLTF model for ${moduleType}:`, error);
+    console.log(`🔄 Falling back to procedural geometry for ${moduleType}`);
+    
+    // Fallback to procedural geometry
+    const fallbackType = FALLBACK_GEOMETRIES[moduleType] || 'rounded_box';
+    const geometry = createModuleGeometry(fallbackType, size);
+    const material = new THREE.MeshLambertMaterial({ 
+      color: getModuleColor(moduleType),
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    return new THREE.Mesh(geometry, material);
+  }
+}
+
+// Scale GLTF model to match the specified size
+function scaleModelToSize(model: THREE.Object3D, targetSize: { w_m: number; l_m: number; h_m: number }) {
+  const box = new THREE.Box3().setFromObject(model);
+  const currentSize = box.getSize(new THREE.Vector3());
+  
+  const scaleX = targetSize.w_m / currentSize.x;
+  const scaleY = targetSize.h_m / currentSize.y; 
+  const scaleZ = targetSize.l_m / currentSize.z;
+  
+  // Use uniform scaling to maintain proportions, based on the largest required scale
+  const uniformScale = Math.max(scaleX, scaleY, scaleZ);
+  model.scale.setScalar(uniformScale);
+  
+  // Center the model
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.sub(center.multiplyScalar(uniformScale));
+}
+
+// Setup materials for GLTF models
+function setupModelMaterials(model: THREE.Object3D) {
+  model.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      // Enable shadows
+      child.castShadow = true;
+      child.receiveShadow = true;
+      
+      // Enhance materials
+      if (child.material instanceof THREE.Material) {
+        child.material.metalness = 0.3;
+        child.material.roughness = 0.7;
+      }
+    }
+  });
+}
+
+// Get appropriate color for module type
+function getModuleColor(moduleType: keyof typeof MODULE_3D_MODELS): number {
+  const moduleColors = {
+    'CREW_SLEEP': 0x4A90E2,      // Blue for crew areas
+    'FOOD_PREP': 0xF39C12,       // Orange for food
+    'MEDICAL': 0xE74C3C,         // Red for medical
+    'WORKSTATION': 0x9B59B6,     // Purple for work
+    'COMMON_AREA': 0x2ECC71,     // Green for social
+    'RECREATION': 0x1ABC9C,      // Teal for recreation
+    'EXERCISE': 0xE67E22,        // Dark orange for fitness
+    'HYGIENE': 0x3498DB,         // Light blue for hygiene
+    'WASTE': 0x95A5A6,           // Gray for waste
+    'MAINTENANCE': 0xD35400,     // Dark red for maintenance
+    'TRASH_MGMT': 0x7F8C8D,      // Dark gray for trash
+    'ECLSS': 0x27AE60,           // Green for life support
+    'STOWAGE': 0x8E44AD,         // Purple for storage
+    'AIRLOCK': 0x34495E,         // Dark blue for airlock
+    'GLOVEBOX': 0x16A085,        // Teal for science
+    'CUSTOM_CAD': 0xBDC3C7       // Light gray for custom
+  };
+  
+  return moduleColors[moduleType] || 0xBDC3C7;
+}
+
+// Apply compliance materials to GLTF models
+function applyComplianceMaterial(model: THREE.Object3D, complianceStatus: string) {
+  const complianceColors = {
+    'warning': new THREE.Color(0xFFD700),    // Gold for warnings
+    'violation': new THREE.Color(0xFF4444)   // Red for violations
+  };
+  
+  const targetColor = complianceColors[complianceStatus as keyof typeof complianceColors];
+  if (!targetColor) return;
+  
+  model.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.material) {
+      // Clone material to avoid affecting other instances
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map(mat => {
+          const newMat = mat.clone();
+          newMat.color = targetColor.clone();
+          newMat.emissive = targetColor.clone().multiplyScalar(0.2);
+          return newMat;
+        });
+      } else {
+        child.material = child.material.clone();
+        child.material.color = targetColor.clone();
+        child.material.emissive = targetColor.clone().multiplyScalar(0.2);
+      }
+    }
+  });
+}
+
+
+
+// Create realistic 3D geometries for different NASA modules (fallback function)
 function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: number; h_m: number }): THREE.BufferGeometry {
   const { w_m, h_m, l_m } = size;
   
@@ -366,8 +565,14 @@ function createComplianceIndicator(position: THREE.Vector3, status: 'compliant' 
   sprite.position.set(position.x, position.y + 3, position.z); // Float above module
   sprite.scale.set(2, 2, 1);
   
+  // Make sure compliance indicators never interfere with mouse interactions
+  sprite.raycast = function() {}; // Disable raycasting completely
+  sprite.layers.set(31); // Put on the highest layer (layer 31)
+  
   return sprite;
 }
+
+
 
 // Create corridor visualization between modules
 function createCorridorVisualization(corridor: CorridorConnection): THREE.Group {
@@ -1269,7 +1474,7 @@ function ThreeScene({
           raycasterRef.current.setFromCamera(mouseRef.current, camera);
           
           const meshes = Array.from(meshesRef.current.values());
-          const intersects = raycasterRef.current.intersectObjects(meshes);
+          const intersects = raycasterRef.current.intersectObjects(meshes, false); // Only meshes, no descendants
           
           if (intersects.length > 0) {
             const clickedId = intersects[0].object.userData.id;
@@ -1312,6 +1517,9 @@ function ThreeScene({
             newPos.z = snap(newPos.z);
             newPos.y = Math.max(1, newPos.y);
             selectedMesh.position.copy(newPos);
+            
+            // Note: Compliance indicators are removed from scene during dragging
+            // They will be recreated when the scene updates after dragging ends
           }
           return;
         }
@@ -1560,6 +1768,9 @@ function ThreeScene({
 
     console.log('Updating objects in scene with compliance analysis, count:', objects.length);
 
+    // Compliance indicators are completely removed during dragging to prevent interference
+    // They are recreated automatically when the scene updates after dragging ends
+
     // Analyze compliance for all modules
     const complianceAnalysis = analyzeModuleCompliance(objects);
     
@@ -1584,7 +1795,64 @@ function ThreeScene({
     corridorsRef.current.clear();
     unconnectedIndicatorsRef.current.clear();
 
-    // Add new meshes with compliance status
+    // Safely upgrade a mesh to GLTF model without affecting dragging
+    const upgradeToGLTFModel = async (
+      moduleId: string, 
+      moduleType: keyof typeof MODULE_3D_MODELS, 
+      size: { w_m: number; l_m: number; h_m: number },
+      complianceStatus: string
+    ) => {
+      try {
+        console.log(`🔄 Upgrading ${moduleType} to GLTF model...`);
+        
+        // Load the GLTF model
+        const model = await loadModuleModel(moduleType, size);
+        
+        // Get the current mesh (might have been moved by user)
+        const currentMesh = meshesRef.current.get(moduleId);
+        if (!currentMesh || !sceneRef.current) {
+          console.log(`⚠️ Module ${moduleId} no longer exists, skipping upgrade`);
+          return;
+        }
+        
+        // Preserve the current position, rotation, and scale
+        const currentPosition = currentMesh.position.clone();
+        const currentRotation = currentMesh.rotation.clone();
+        const currentScale = currentMesh.scale.clone();
+        
+        // Apply the preserved transforms to the new model
+        model.position.copy(currentPosition);
+        model.rotation.copy(currentRotation);
+        model.scale.copy(currentScale);
+        
+        // Set up shadows and user data
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        model.userData = { id: moduleId, type: moduleType };
+        
+        // Apply compliance material if needed
+        if (complianceStatus !== 'compliant') {
+          applyComplianceMaterial(model, complianceStatus);
+        }
+        
+        // Safely replace the mesh
+        sceneRef.current.remove(currentMesh);
+        sceneRef.current.add(model);
+        meshesRef.current.set(moduleId, model as any);
+        
+        console.log(`✅ Successfully upgraded ${moduleType} to GLTF model`);
+        
+      } catch (error) {
+        console.log(`📋 GLTF upgrade failed for ${moduleType}, keeping fallback geometry`);
+        // No problem - we already have a working fallback mesh
+      }
+    };
+
+    // Add new meshes immediately (synchronous) then upgrade to GLTF in background
     objects.forEach((obj) => {
       const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
       if (!moduleConfig) return;
@@ -1592,7 +1860,7 @@ function ThreeScene({
       const isSelected = selectedId === obj.id;
       const complianceStatus = complianceAnalysis.moduleStatus[obj.id];
       
-      // Create realistic geometry using our new system
+      // Create immediate fallback mesh (always works, no race conditions)
       const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
       const material = createModuleMaterial(moduleConfig, isSelected, complianceStatus);
 
@@ -1607,12 +1875,17 @@ function ThreeScene({
       sceneRef.current!.add(mesh);
       meshesRef.current.set(obj.id, mesh);
       
-      // Add compliance indicator above module (only for warnings and violations)
+      // Re-enabling compliance indicators to test if they cause the issue
       if (complianceStatus !== 'compliant') {
         const position = new THREE.Vector3(...obj.position);
         const indicator = createComplianceIndicator(position, complianceStatus);
+        indicator.userData = { moduleId: obj.id }; // Store reference to module
         complianceIndicatorsRef.current.add(indicator);
       }
+      
+      // TEMPORARILY DISABLED: GLTF model upgrade (might interfere with dragging)
+      // TODO: Re-enable after fixing dragging issues
+      // upgradeToGLTFModel(obj.id, obj.type as keyof typeof MODULE_3D_MODELS, obj.size, complianceStatus);
     });
     
     // Add violation lines between non-compliant modules
