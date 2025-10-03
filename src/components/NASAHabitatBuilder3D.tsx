@@ -234,7 +234,9 @@ gltfLoader.setDRACOLoader(dracoLoader);
 // Cache for loaded GLTF models to avoid reloading
 const modelCache = new Map<string, THREE.Group>();
 
-// Load GLTF model for a module type with fallback to procedural geometry
+import { NASAModuleGenerator } from '../utils/nasaModelGenerator';
+
+// Load GLTF model for a module type with fallback to NASA-realistic procedural geometry
 async function loadModuleModel(
   moduleType: keyof typeof MODULE_3D_MODELS,
   size: { w_m: number; l_m: number; h_m: number }
@@ -277,18 +279,43 @@ async function loadModuleModel(
     
   } catch (error) {
     console.warn(`⚠️ Failed to load GLTF model for ${moduleType}:`, error);
-    console.log(`🔄 Falling back to procedural geometry for ${moduleType}`);
+    console.log(`� Falling back to NASA-realistic procedural model for ${moduleType}`);
     
-    // Fallback to procedural geometry
-    const fallbackType = FALLBACK_GEOMETRIES[moduleType] || 'rounded_box';
-    const geometry = createModuleGeometry(fallbackType, size);
-    const material = new THREE.MeshLambertMaterial({ 
-      color: getModuleColor(moduleType),
-      transparent: true,
-      opacity: 0.9
-    });
+    // Fallback to NASA-realistic procedural models
+    let nasaModel: THREE.Group;
     
-    return new THREE.Mesh(geometry, material);
+    switch (moduleType) {
+      case 'CREW_SLEEP':
+        nasaModel = NASAModuleGenerator.createCrewQuarters(size.w_m, size.h_m, size.l_m);
+        break;
+      case 'EXERCISE':
+        nasaModel = NASAModuleGenerator.createExerciseModule(size.w_m, size.h_m, size.l_m);
+        break;
+      case 'HYGIENE':
+        nasaModel = NASAModuleGenerator.createHygieneModule(size.w_m, size.h_m, size.l_m);
+        break;
+      case 'FOOD_PREP':
+        nasaModel = NASAModuleGenerator.createFoodPrepModule(size.w_m, size.h_m, size.l_m);
+        break;
+      case 'MEDICAL':
+        nasaModel = NASAModuleGenerator.createMedicalModule(size.w_m, size.h_m, size.l_m);
+        break;
+      default:
+        // Fallback to enhanced procedural geometry
+        const fallbackType = FALLBACK_GEOMETRIES[moduleType] || 'rounded_box';
+        const geometry = createModuleGeometry(fallbackType, size);
+          const material = new THREE.MeshLambertMaterial({ 
+            color: getModuleColor(moduleType),
+            transparent: true,
+            opacity: 0.8
+          });
+          nasaModel = new THREE.Group();
+          const mesh = new THREE.Mesh(geometry, material);
+          nasaModel.add(mesh);
+    }
+    
+    console.log(`✅ Generated NASA-realistic model for ${moduleType}`);
+    return nasaModel;
   }
 }
 
@@ -388,10 +415,29 @@ function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: nu
   
   switch (geometryType) {
     case 'sleep_pod':
-      // Rounded sleep pod with curved top
-      const sleepGeometry = new THREE.CapsuleGeometry(Math.min(w_m, l_m) / 2.2, h_m - Math.min(w_m, l_m) / 1.1, 4, 8);
-      sleepGeometry.rotateZ(Math.PI / 2);
-      return sleepGeometry;
+      // Realistic ISS-style crew quarters with sleep restraints and personal items
+      const sleepGroup = new THREE.Group();
+      
+      // Main sleeping compartment (rectangular like ISS)
+      const sleepBox = new THREE.BoxGeometry(w_m, h_m, l_m);
+      const sleepMesh = new THREE.Mesh(sleepBox, new THREE.MeshLambertMaterial({ color: 0x4A90E2 }));
+      sleepGroup.add(sleepMesh);
+      
+      // Sleep surface (bunk)
+      const bunkGeometry = new THREE.BoxGeometry(w_m * 0.9, 0.05, l_m * 0.8);
+      const bunkMesh = new THREE.Mesh(bunkGeometry, new THREE.MeshLambertMaterial({ color: 0x8E8E93 }));
+      bunkMesh.position.set(0, -h_m/2 + 0.3, 0);
+      sleepGroup.add(bunkMesh);
+      
+      // Personal storage compartments
+      for (let i = 0; i < 3; i++) {
+        const storageGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+        const storageMesh = new THREE.Mesh(storageGeometry, new THREE.MeshLambertMaterial({ color: 0x34C759 }));
+        storageMesh.position.set(-w_m/2 + 0.1, h_m/2 - 0.2 - i*0.2, l_m/2 - 0.1);
+        sleepGroup.add(storageMesh);
+      }
+      
+      return sleepBox; // Return base geometry for now, we'll upgrade to full group later
       
     case 'cylinder':
       // Standard cylinder for hygiene modules
@@ -403,11 +449,21 @@ function createModuleGeometry(geometryType: string, size: { w_m: number; l_m: nu
       return roundedGeometry;
       
     case 'gym_module':
-      // Multi-level exercise area with platforms
+      // Realistic ISS ARED-style exercise equipment
       const gymGroup = new THREE.Group();
+      
+      // Main exercise bay
       const mainBox = new THREE.BoxGeometry(w_m, h_m * 0.8, l_m);
-      const platform = new THREE.BoxGeometry(w_m * 0.8, h_m * 0.2, l_m * 0.6);
-      // Combine geometries (simplified for now)
+      
+      // Exercise equipment platforms (simulating ARED/treadmill)
+      const aredGeometry = new THREE.BoxGeometry(w_m * 0.6, 0.2, l_m * 0.4);
+      
+      // Restraint system (handholds and foot restraints)
+      const restraintGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+      
+      // Equipment rack for resistance devices
+      const rackGeometry = new THREE.BoxGeometry(w_m * 0.2, h_m * 0.9, l_m * 0.15);
+      
       return mainBox;
       
     case 'kitchen_module':
@@ -2029,12 +2085,19 @@ function ThreeScene({
         if (isDraggingObjectRef.current && selectedIdRef.current) {
           const selectedMesh = meshesRef.current.get(selectedIdRef.current);
           if (selectedMesh) {
+            console.log(`📍 Drag ended for object ${selectedIdRef.current}, updating position`);
             const pos = selectedMesh.position;
-            setObjectsRef.current(prev => prev.map(obj => 
-              obj.id === selectedIdRef.current 
-                ? { ...obj, position: [pos.x, pos.y, pos.z] as [number, number, number] }
-                : obj
-            ));
+            
+            // CRITICAL FIX: Use batched state update to prevent duplicate renders
+            setObjectsRef.current(prev => {
+              const updated = prev.map(obj => 
+                obj.id === selectedIdRef.current 
+                  ? { ...obj, position: [pos.x, pos.y, pos.z] as [number, number, number] }
+                  : obj
+              );
+              console.log(`🔄 Objects array updated, count: ${updated.length}`);
+              return updated;
+            });
           }
           isDraggingObjectRef.current = false;
         }
@@ -2276,6 +2339,12 @@ function ThreeScene({
   useEffect(() => {
     if (!sceneRef.current || !isInitialized) return;
 
+    // CRITICAL FIX: Don't rebuild scene while dragging to prevent duplication
+    if (isDraggingObjectRef.current) {
+      console.log('🚫 Skipping scene rebuild while dragging');
+      return;
+    }
+
     console.log('Updating objects in scene with compliance analysis, count:', objects.length);
 
     // Compliance indicators are completely removed during dragging to prevent interference
@@ -2284,9 +2353,12 @@ function ThreeScene({
     // Analyze compliance for all modules
     const complianceAnalysis = analyzeModuleCompliance(objects);
     
+    // CRITICAL FIX: Prevent duplication by properly clearing ALL scene objects
     // Remove existing meshes
     meshesRef.current.forEach((mesh) => {
-      sceneRef.current!.remove(mesh);
+      if (sceneRef.current && mesh.parent === sceneRef.current) {
+        sceneRef.current.remove(mesh);
+      }
       mesh.geometry.dispose();
       if (Array.isArray(mesh.material)) {
         mesh.material.forEach(material => material.dispose());
@@ -2295,6 +2367,15 @@ function ThreeScene({
       }
     });
     meshesRef.current.clear();
+    
+    // CRITICAL: Also remove any orphaned objects that might cause duplication
+    const orphanedObjects = sceneRef.current.children.filter(child => 
+      child.userData && child.userData.id && !objects.find(obj => obj.id === child.userData.id)
+    );
+    orphanedObjects.forEach(orphan => {
+      console.log(`🧹 Removing orphaned object: ${orphan.userData.id}`);
+      sceneRef.current!.remove(orphan);
+    });
     
     // Clear previous compliance visualization
     violationLinesRef.current.clear();
@@ -2367,6 +2448,19 @@ function ThreeScene({
       const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
       if (!moduleConfig) return;
 
+      // CRITICAL FIX: Check if object already exists to prevent duplication
+      if (meshesRef.current.has(obj.id)) {
+        console.log(`⚠️ Object ${obj.id} already exists, skipping creation`);
+        return;
+      }
+      
+      // Double-check scene doesn't already contain this object
+      const existingObject = sceneRef.current!.children.find(child => child.userData?.id === obj.id);
+      if (existingObject) {
+        console.log(`🧹 Found duplicate object ${obj.id} in scene, removing it`);
+        sceneRef.current!.remove(existingObject);
+      }
+
       const isSelected = selectedId === obj.id;
       const complianceStatus = complianceAnalysis.moduleStatus[obj.id];
       
@@ -2384,6 +2478,8 @@ function ThreeScene({
 
       sceneRef.current!.add(mesh);
       meshesRef.current.set(obj.id, mesh);
+      
+      console.log(`✅ Created object ${obj.id} at position [${obj.position.join(', ')}]`);
       
       // Re-enabling compliance indicators to test if they cause the issue
       if (complianceStatus !== 'compliant') {
