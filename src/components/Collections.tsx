@@ -225,23 +225,23 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+    <div className="flex flex-col w-full h-full min-h-screen bg-black text-white overflow-hidden">
       {/* Header */}
-      <div className="bg-black/20 border-b border-purple-500/20 p-4">
+      <div className="bg-gray-900/90 border-b border-gray-700/50 p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
               <Folder className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold text-white">
                 Design Collections
               </h1>
-              <p className="text-sm text-gray-300">Manage your saved habitat designs</p>
+              <p className="text-base text-gray-400 mt-1">Manage your saved habitat designs</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Import */}
             <div className="relative">
               <input
@@ -250,7 +250,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
                 onChange={handleImportDesign}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              <Button className="bg-green-600 hover:bg-green-700">
+              <Button className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 px-4 py-2">
                 <Upload className="w-4 h-4 mr-2" />
                 Import
               </Button>
@@ -260,7 +260,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
             {currentLayout && (
               <Button 
                 onClick={() => setShowSaveDialog(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 px-4 py-2"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Current
@@ -271,7 +271,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-black/10 border-b border-purple-500/20 p-4">
+      <div className="bg-gray-900/50 border-b border-gray-700/40 p-4">
         <div className="flex items-center gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -281,7 +281,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
               placeholder="Search designs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400"
+              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-gray-500 focus:outline-none"
             />
           </div>
           
@@ -289,7 +289,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white"
+            className="px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-500 focus:outline-none"
           >
             <option value="">All Tags</option>
             {getAllTags().map(tag => (
@@ -298,16 +298,16 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
           </select>
           
           {/* View Mode */}
-          <div className="flex items-center gap-1 bg-gray-800/30 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1 border border-gray-600">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600' : 'hover:bg-gray-700/50'}`}
+              className={`p-3 rounded ${viewMode === 'grid' ? 'bg-gray-600 text-white' : 'hover:bg-gray-700 text-gray-300'}`}
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600' : 'hover:bg-gray-700/50'}`}
+              className={`p-3 rounded ${viewMode === 'list' ? 'bg-gray-600 text-white' : 'hover:bg-gray-700 text-gray-300'}`}
             >
               <List className="w-4 h-4" />
             </button>
@@ -316,7 +316,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
       </div>
 
       {/* Design List */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-6 bg-black">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-400">Loading designs...</div>
@@ -332,11 +332,11 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
             </div>
           </div>
         ) : (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-3'}>
             {filteredDesigns.map((design) => (
               <div
                 key={design.id}
-                className={`bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 hover:bg-gray-700/30 transition-all ${
+                className={`bg-gray-900 border border-gray-700 rounded-lg p-5 hover:bg-gray-800 transition-all duration-200 shadow-lg ${
                   viewMode === 'list' ? 'flex items-center justify-between' : ''
                 }`}
               >
@@ -362,7 +362,7 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
                       {design.tags.map(tag => (
                         <span
                           key={tag}
-                          className="px-2 py-1 bg-purple-600/30 text-purple-200 text-xs rounded-full"
+                          className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full border border-gray-600"
                         >
                           {tag}
                         </span>
@@ -384,18 +384,17 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
                       <Button 
                         size="sm" 
                         onClick={() => onLoadDesign?.(design)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white border border-gray-600"
                       >
                         Load Design
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleExportDesign(design.id)}>
+                      <Button size="sm" className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-600" onClick={() => handleExportDesign(design.id)}>
                         <Download className="w-3 h-3" />
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline" 
+                        className="bg-gray-800 hover:bg-red-700 text-white border border-gray-600"
                         onClick={() => handleDeleteDesign(design.id)}
-                        className="hover:bg-red-600/20"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -405,17 +404,16 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
                 
                 {viewMode === 'list' && (
                   <div className="flex items-center gap-2 ml-4">
-                    <Button size="sm" onClick={() => onLoadDesign?.(design)}>
+                    <Button size="sm" className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600" onClick={() => onLoadDesign?.(design)}>
                       Load
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleExportDesign(design.id)}>
+                    <Button size="sm" className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-600" onClick={() => handleExportDesign(design.id)}>
                       <Download className="w-3 h-3" />
                     </Button>
                     <Button 
                       size="sm" 
-                      variant="outline" 
+                      className="bg-gray-800 hover:bg-red-700 text-white border border-gray-600"
                       onClick={() => handleDeleteDesign(design.id)}
-                      className="hover:bg-red-600/20"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -429,45 +427,45 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
 
       {/* Save Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Save Design</h3>
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-600 rounded-xl p-8 max-w-lg w-full mx-4 shadow-2xl">
+            <h3 className="text-2xl font-bold mb-6 text-white">Save Design</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-2">Design Name</label>
+                <label className="block text-sm font-medium mb-2 text-white">Design Name</label>
                 <input
                   type="text"
                   value={saveForm.name}
                   onChange={(e) => setSaveForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-500 focus:outline-none"
                   placeholder="Enter design name"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-2 text-white">Description</label>
                 <textarea
                   value={saveForm.description}
                   onChange={(e) => setSaveForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white resize-none"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white resize-none focus:border-gray-500 focus:outline-none"
                   rows={3}
                   placeholder="Describe your design"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Tags</label>
+                <label className="block text-sm font-medium mb-2 text-white">Tags</label>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
                     value={saveForm.newTag}
                     onChange={(e) => setSaveForm(prev => ({ ...prev, newTag: e.target.value }))}
                     onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                    className="flex-1 px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
+                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-white focus:border-gray-500 focus:outline-none"
                     placeholder="Add tag"
                   />
-                  <Button size="sm" onClick={addTag}>
+                  <Button size="sm" onClick={addTag} className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600">
                     <Plus className="w-3 h-3" />
                   </Button>
                 </div>
@@ -476,10 +474,10 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
                   {saveForm.tags.map(tag => (
                     <span
                       key={tag}
-                      className="px-2 py-1 bg-purple-600/30 text-purple-200 text-xs rounded-full flex items-center gap-1"
+                      className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full flex items-center gap-1 border border-gray-600"
                     >
                       {tag}
-                      <button onClick={() => removeTag(tag)} className="hover:text-red-300">
+                      <button onClick={() => removeTag(tag)} className="hover:text-red-400">
                         ×
                       </button>
                     </span>
@@ -488,11 +486,11 @@ export default function Collections({ currentLayout, onLoadDesign, onSaveSuccess
               </div>
             </div>
             
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+            <div className="flex justify-end gap-3 mt-8">
+              <Button className="bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 px-6 py-2" onClick={() => setShowSaveDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveDesign} disabled={isSaving}>
+              <Button onClick={handleSaveDesign} disabled={isSaving} className="bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 px-6 py-2">
                 {isSaving ? 'Saving...' : 'Save Design'}
               </Button>
             </div>

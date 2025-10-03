@@ -12,6 +12,9 @@ import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, M
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 
+// Import your CAD App
+import CADApp from '../../CAD/App';
+
 // GLTF Model paths for different module types
 const MODULE_3D_MODELS = {
   'CREW_SLEEP': '/models/crew-sleep-pod.glb',
@@ -58,7 +61,6 @@ import { Layout, Scenario } from '@/lib/schemas';
 // Database and collections
 import { saveDesign, SavedDesign, initDatabase } from '@/lib/database';
 import Collections from './Collections';
-import CADApp from '../../CAD/App';
 
 import { MetricsHeader } from '@/features/analyze/MetricsHeader';
 import AnalysisResults from '@/ui/AnalysisResults';
@@ -3595,32 +3597,17 @@ export default function NASAHabitatBuilder3D() {
         </main>
           </div>
         ) : activeTab === 'collections' ? (
-          <Collections
-            currentLayout={generateNASALayout()}
-            onLoadDesign={handleLoadDesign}
-            onSaveSuccess={() => setActiveTab('design')}
-          />
+          <div className="flex-1 flex h-full w-full">
+            <Collections
+              currentLayout={generateNASALayout()}
+              onLoadDesign={handleLoadDesign}
+              onSaveSuccess={() => setActiveTab('design')}
+            />
+          </div>
         ) : activeTab === 'cad' ? (
-          <div className="flex-1 relative">
-            {/* CAD Header */}
-            <div className="absolute top-0 left-0 right-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Button onClick={() => setActiveTab('design')} className="flex items-center gap-2">
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Design
-                  </Button>
-                  <div className="h-6 w-px bg-border"></div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    CAD Builder
-                  </h2>
-                </div>
-              </div>
-            </div>
-            
-            {/* Your actual CAD App */}
-            <div className="h-full pt-20">
+          <div className="flex flex-1 relative h-full">
+            {/* CAD App Container - properly integrated */}
+            <div className="w-full h-full relative">
               <CADApp />
             </div>
           </div>

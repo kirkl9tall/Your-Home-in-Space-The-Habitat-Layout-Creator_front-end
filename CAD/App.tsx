@@ -32,12 +32,15 @@ const StatusBar: React.FC = () => {
 
 
 const App: React.FC = () => {
+  const isInspectorCollapsed = useStore((state) => state.isInspectorCollapsed);
+  const isToolbarCollapsed = useStore((state) => state.isToolbarCollapsed);
+  const toggleInspector = useStore((state) => state.toggleInspector);
+  const toggleToolbar = useStore((state) => state.toggleToolbar);
+  
   const { 
     undo, redo, duplicateSelectedObjects, removeSelectedObjects, 
     setGizmoMode, toggleFocusMode, groupSelectedObjects, ungroupSelectedObjects, 
     toggleMeasureMode, cancelCurrentMeasurement,
-    isInspectorCollapsed, toggleInspector,
-    isToolbarCollapsed, toggleToolbar,
   } = useStore();
   const [isMounted, setIsMounted] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -106,21 +109,40 @@ const App: React.FC = () => {
           <CanvasContainer isCameraInfoOpen={isCameraInfoOpen} setCameraInfoOpen={setIsCameraInfoOpen} inspectorWidth={inspectorWidth} toolbarWidth={toolbarWidth} />
           
            <button 
-            onClick={toggleToolbar} 
+            onClick={toggleToolbar}
             aria-label={isToolbarCollapsed ? 'Show Toolbar' : 'Hide Toolbar'}
             className="absolute top-1/2 -translate-y-1/2 left-0 z-20 w-4 h-20 bg-[var(--color-panel)]/50 hover:bg-[var(--color-accent)] text-white/50 hover:text-white border border-l-0 border-[var(--color-border)] rounded-r-md flex items-center justify-center transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] opacity-50 hover:opacity-100"
           >
             <ChevronRightIcon className={`w-4 h-4 transition-transform duration-300 ${isToolbarCollapsed ? 'rotate-180' : ''}`} />
           </button>
 
-
           <button 
-            onClick={toggleInspector} 
+            onClick={toggleInspector}
             aria-label={isInspectorCollapsed ? 'Show Inspector' : 'Hide Inspector'}
             className="absolute top-1/2 -translate-y-1/2 right-0 z-20 w-4 h-20 bg-[var(--color-panel)]/50 hover:bg-[var(--color-accent)] text-white/50 hover:text-white border border-r-0 border-[var(--color-border)] rounded-l-md flex items-center justify-center transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] opacity-50 hover:opacity-100"
           >
             <ChevronLeftIcon className={`w-4 h-4 transition-transform duration-300 ${isInspectorCollapsed ? 'rotate-180' : ''}`} />
           </button>
+
+          {/* Camera and Help buttons positioned in canvas area */}
+          <div className="absolute bottom-4 right-4 z-30 flex items-center gap-2">
+            <button
+              onClick={() => setIsCameraInfoOpen(true)}
+              aria-label="Show camera controls"
+              title="Camera Controls"
+              className="w-10 h-10 flex items-center justify-center bg-[var(--color-panel-light)]/80 backdrop-blur-sm text-[var(--color-text-secondary)] rounded-full shadow-lg border border-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-white hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
+            >
+              <CameraIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              aria-label="Show help"
+              title="Help & Shortcuts"
+              className="w-10 h-10 flex items-center justify-center bg-[var(--color-panel-light)]/80 backdrop-blur-sm text-[var(--color-text-secondary)] rounded-full shadow-lg border border-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-white hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
+            >
+              <HelpIcon className="w-5 h-5" />
+            </button>
+          </div>
         </main>
         
         {/* Inspector Panel */}
@@ -131,27 +153,7 @@ const App: React.FC = () => {
         </aside>
       </div>
 
-      <div 
-        className="fixed bottom-8 z-30 flex items-center gap-2"
-        style={{ left: `calc(${toolbarWidth} + 1rem)`, transition: 'left 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
-      >
-        <button
-          onClick={() => setIsCameraInfoOpen(true)}
-          aria-label="Show camera controls"
-          title="Camera Controls"
-          className="w-10 h-10 flex items-center justify-center bg-[var(--color-panel-light)]/80 backdrop-blur-sm text-[var(--color-text-secondary)] rounded-full shadow-lg border border-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-white hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
-        >
-          <CameraIcon className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => setIsHelpOpen(true)}
-          aria-label="Show help"
-          title="Help & Shortcuts"
-          className="w-10 h-10 flex items-center justify-center bg-[var(--color-panel-light)]/80 backdrop-blur-sm text-[var(--color-text-secondary)] rounded-full shadow-lg border border-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-white hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
-        >
-          <HelpIcon className="w-5 h-5" />
-        </button>
-      </div>
+
 
       <StatusBar />
       <ToastContainer />

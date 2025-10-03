@@ -224,10 +224,26 @@ const SceneGraphNode: React.FC<{ object: SceneObject; allObjects: SceneObject[];
                 {getIcon(object.type)}
                 <span className="flex-1 truncate">{object.name}</span>
                 <div className="flex items-center gap-2 ml-2">
-                    <button onClick={e => { e.stopPropagation(); toggleObjectProperty(object.id, 'isLocked'); }} title={object.isLocked ? 'Unlock' : 'Lock'} className="p-1 rounded-full hover:bg-white/10">
+                    <button 
+                        onClick={e => { 
+                            e.stopPropagation(); 
+                            console.log('Lock toggle clicked for:', object.id, 'current state:', object.isLocked);
+                            toggleObjectProperty(object.id, 'isLocked'); 
+                        }} 
+                        title={object.isLocked ? 'Unlock' : 'Lock'} 
+                        className="p-1 rounded-full hover:bg-white/10"
+                    >
                         {object.isLocked ? <LockIcon className="w-3.5 h-3.5 text-orange-400" /> : <UnlockIcon className="w-3.5 h-3.5 text-gray-500 hover:text-white" />}
                     </button>
-                    <button onClick={e => { e.stopPropagation(); toggleObjectProperty(object.id, 'isVisible'); }} title={object.isVisible ? 'Hide' : 'Show'} className="p-1 rounded-full hover:bg-white/10">
+                    <button 
+                        onClick={e => { 
+                            e.stopPropagation(); 
+                            console.log('Visibility toggle clicked for:', object.id, 'current state:', object.isVisible);
+                            toggleObjectProperty(object.id, 'isVisible'); 
+                        }} 
+                        title={object.isVisible ? 'Hide' : 'Show'} 
+                        className="p-1 rounded-full hover:bg-white/10"
+                    >
                         {object.isVisible ? <EyeOpenIcon className="w-3.5 h-3.5 text-gray-400 hover:text-white" /> : <EyeClosedIcon className="w-3.5 h-3.5 text-gray-600 hover:text-white" />}
                     </button>
                 </div>
@@ -469,7 +485,7 @@ const Inspector: React.FC = () => {
         </CollapsibleSection>
 
         <CollapsibleSection title="Material Library" defaultOpen>
-          <div className="grid grid-cols-5 gap-2.5 p-3">
+          <div className="grid grid-cols-4 gap-2.5 p-3">
               {materials.map(mat => {
                   const IconComponent = mat.icon ? materialIcons[mat.icon] : null;
 
