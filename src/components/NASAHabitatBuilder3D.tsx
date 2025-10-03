@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft, Sparkles, Home, Rocket, Moon } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -2617,7 +2617,7 @@ export default function NASAHabitatBuilder3D() {
   // State for collapsible sections
   const [showNasaFunctional, setShowNasaFunctional] = useState(true);
   const [showNasaMission, setShowNasaMission] = useState(true);
-  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [showSampleDesigns, setShowSampleDesigns] = useState(true);
   const [showModuleInspector, setShowModuleInspector] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCustomCAD, setShowCustomCAD] = useState(true);
@@ -3327,23 +3327,86 @@ export default function NASAHabitatBuilder3D() {
   };
 
   // Add sample NASA modules
-  const addSampleModule = () => {
-    const sampleTypes: FunctionalType[] = ['CREW_SLEEP', 'HYGIENE', 'FOOD_PREP', 'EXERCISE'];
-    sampleTypes.forEach((type, index) => {
-      const id = generateId(type);
-      const modulePreset = MODULE_PRESETS.find(p => p.type === type);
-      if (!modulePreset) return;
-      
-      const newObject: HabitatObject = {
+  // Sample Design Functions
+  const loadBasicHabitat = () => {
+    const basicModules: { type: FunctionalType, position: [number, number, number] }[] = [
+      { type: 'CREW_SLEEP', position: [-3, 1.5, -2] },
+      { type: 'HYGIENE', position: [0, 1.5, -2] },
+      { type: 'FOOD_PREP', position: [3, 1.5, -2] },
+      { type: 'COMMON_AREA', position: [0, 1.5, 0] },
+    ];
+
+    const newObjects: HabitatObject[] = basicModules.map((module) => {
+      const id = generateId(module.type);
+      const modulePreset = MODULE_PRESETS.find(p => p.type === module.type);
+      return {
         id,
-        type,
-        position: [index * 3 - 4.5, 1.5, 0],
+        type: module.type,
+        position: module.position,
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
-        size: modulePreset.defaultSize
+        size: modulePreset?.defaultSize || { w_m: 2, l_m: 2, h_m: 2 }
       };
-      setObjects(prev => [...prev, newObject]);
     });
+
+    setObjects(newObjects);
+  };
+
+  const loadMarsHabitat = () => {
+    const marsModules: { type: FunctionalType, position: [number, number, number] }[] = [
+      { type: 'CREW_SLEEP', position: [-4, 1.5, -3] },
+      { type: 'CREW_SLEEP', position: [-4, 1.5, 0] },
+      { type: 'HYGIENE', position: [-1, 1.5, -3] },
+      { type: 'FOOD_PREP', position: [2, 1.5, -3] },
+      { type: 'EXERCISE', position: [5, 1.5, -3] },
+      { type: 'MEDICAL', position: [5, 1.5, 0] },
+      { type: 'ECLSS', position: [-1, 1.5, 0] },
+      { type: 'STOWAGE', position: [2, 1.5, 0] },
+      { type: 'COMMON_AREA', position: [0.5, 1.5, 3] },
+    ];
+
+    const newObjects: HabitatObject[] = marsModules.map((module) => {
+      const id = generateId(module.type);
+      const modulePreset = MODULE_PRESETS.find(p => p.type === module.type);
+      return {
+        id,
+        type: module.type,
+        position: module.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        size: modulePreset?.defaultSize || { w_m: 2, l_m: 2, h_m: 2 }
+      };
+    });
+
+    setObjects(newObjects);
+  };
+
+  const loadLunarHabitat = () => {
+    const lunarModules: { type: FunctionalType, position: [number, number, number] }[] = [
+      { type: 'CREW_SLEEP', position: [-3, 1.5, -2] },
+      { type: 'CREW_SLEEP', position: [-3, 1.5, 1] },
+      { type: 'HYGIENE', position: [0, 1.5, -2] },
+      { type: 'FOOD_PREP', position: [3, 1.5, -2] },
+      { type: 'EXERCISE', position: [3, 1.5, 1] },
+      { type: 'MEDICAL', position: [0, 1.5, 1] },
+      { type: 'AIRLOCK', position: [0, 1.5, 4] },
+      { type: 'COMMON_AREA', position: [0, 1.5, -5] },
+    ];
+
+    const newObjects: HabitatObject[] = lunarModules.map((module) => {
+      const id = generateId(module.type);
+      const modulePreset = MODULE_PRESETS.find(p => p.type === module.type);
+      return {
+        id,
+        type: module.type,
+        position: module.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        size: modulePreset?.defaultSize || { w_m: 2, l_m: 2, h_m: 2 }
+      };
+    });
+
+    setObjects(newObjects);
   };
 
   const selectedObject = objects.find(obj => obj.id === selectedId);
@@ -3748,32 +3811,57 @@ export default function NASAHabitatBuilder3D() {
             })()}
           </div>
 
-          {/* Quick Actions & Custom Shapes */}
+          {/* Sample Designs */}
           <div className="p-3 border-b border-border">
             <h3 
-              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
-              onClick={() => setShowQuickActions(!showQuickActions)}
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-purple-400 transition-colors"
+              onClick={() => setShowSampleDesigns(!showSampleDesigns)}
             >
-              {showQuickActions ? (
-                <Minus className="w-4 h-4" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              Quick Actions
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              Sample Designs
+              {showSampleDesigns ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
             </h3>
-            {showQuickActions && (
-            <div className="space-y-2">
-              <Button 
-                onClick={addSampleModule} 
-                className="w-full btn-space text-xs py-2 h-8"
-                size="sm"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add Sample Module
-              </Button>
+            {showSampleDesigns && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Load pre-designed NASA-compliant habitat layouts for different missions
+                </p>
+                
+                <Button 
+                  onClick={loadBasicHabitat} 
+                  className="w-full text-xs h-8 bg-blue-600/80 hover:bg-blue-600 flex items-center gap-2"
+                >
+                  <Home className="w-3 h-3" />
+                  Basic Habitat (4 modules)
+                </Button>
 
+                <Button 
+                  onClick={loadMarsHabitat} 
+                  className="w-full text-xs h-8 bg-red-600/80 hover:bg-red-600 flex items-center gap-2"
+                >
+                  <Rocket className="w-3 h-3" />
+                  Mars Mission (9 modules)
+                </Button>
 
-            </div>
+                <Button 
+                  onClick={loadLunarHabitat} 
+                  className="w-full text-xs h-8 bg-gray-600/80 hover:bg-gray-600 flex items-center gap-2"
+                >
+                  <Moon className="w-3 h-3" />
+                  Lunar Base (8 modules)
+                </Button>
+
+                <div className="pt-2 border-t border-border/40">
+                  <Button 
+                    onClick={() => setObjects([])} 
+                    variant="outline"
+                    className="w-full text-xs h-8 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear All Modules
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 
