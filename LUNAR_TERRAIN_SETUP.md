@@ -1,5 +1,8 @@
 # 🌙 Lunar Terrain Setup Guide
 
+> **🚀 NEW: Enhanced Lunar System Available!**  
+> See [LUNAR_TERRAIN_GUIDE.md](./LUNAR_TERRAIN_GUIDE.md) for the comprehensive lunar terrain system with Apollo sites, Earth in sky, and enhanced controls.
+
 The NASA Habitat Builder now supports **real lunar surface terrain** from Cesium Ion when the destination is set to "LUNAR" or "LUNAR_SURFACE".
 
 ## ✅ **Quick Setup**

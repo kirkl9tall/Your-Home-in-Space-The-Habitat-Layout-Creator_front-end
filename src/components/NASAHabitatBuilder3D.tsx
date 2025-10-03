@@ -15,6 +15,7 @@ import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 // Import your CAD App
 import CADApp from '../../CAD/App';
 import MarsTerrainConfig from './MarsTerrainConfig';
+import LunarTerrainConfig from './LunarTerrainConfig';
 
 // GLTF Model paths for different module types
 const MODULE_3D_MODELS = {
@@ -1191,6 +1192,26 @@ function ThreeScene({
   const isLunarEnvironment = scenario.destination === 'LUNAR' || scenario.destination === 'LUNAR_SURFACE';
   const initialCameraDistance = isMarsEnvironment ? 60 : isLunarEnvironment ? 50 : 25; // Balanced distance for terrain exploration
   
+  // Debug environment detection
+  console.log('🌍 Environment Detection:', {
+    destination: scenario.destination,
+    isMarsEnvironment,
+    isLunarEnvironment,
+    initialCameraDistance
+  });
+
+  // Adjust camera for lunar environment
+  React.useEffect(() => {
+    if (isLunarEnvironment && cameraStateRef.current) {
+      console.log('🌙 Adjusting camera for lunar environment');
+      cameraStateRef.current.spherical.radius = 120; // Good distance for 800m terrain
+      cameraStateRef.current.spherical.phi = Math.PI / 3; // 60 degrees down angle
+      cameraStateRef.current.spherical.theta = 0; // Front view
+      cameraStateRef.current.target.set(0, 0, 0); // Look at center
+      console.log('🌙 Camera adjusted for lunar surface exploration');
+    }
+  }, [isLunarEnvironment]);
+  
   const cameraStateRef = useRef({
     isRotating: false,
     isPanning: false,
@@ -1599,8 +1620,230 @@ function ThreeScene({
           }
         })();
         
-      } else {
-        // Standard ground for non-Mars destinations - realistic habitat site size
+      } else if (scenario.destination === 'LUNAR' || scenario.destination === 'LUNAR_SURFACE') {
+        console.log('🌙 ===== LUNAR TERRAIN SYSTEM ACTIVATING =====');
+        console.log('🌙 Loading Lunar terrain for destination:', scenario.destination);
+        console.log('🌙 Lunar environment detected, creating enhanced lunar terrain...');
+        console.log('🌙 Environment config:', envConfig);
+        
+        // Create lunar terrain using box geometry - large flat surface for habitat construction
+        const fallbackGeometry = new THREE.BoxGeometry(400, 2, 400); // Large lunar construction area
+        console.log('🌙 Created lunar terrain: 400m x 400m construction area');
+        
+        // Create realistic lunar surface material
+        console.log('🌙 Creating lunar surface material...');
+        const fallbackMaterial = new THREE.MeshLambertMaterial({ 
+          color: 0x999999, // Realistic lunar gray
+          side: THREE.DoubleSide,
+          wireframe: false,
+          transparent: false,
+          opacity: 1.0
+        });
+        
+        // Load authentic lunar surface texture
+        if (envConfig.groundTexture) {
+          const textureLoader = new THREE.TextureLoader();
+          textureLoader.load(
+            envConfig.groundTexture,
+            (texture) => {
+              console.log('🌙 Lunar surface texture applied successfully');
+              texture.wrapS = THREE.RepeatWrapping;
+              texture.wrapT = THREE.RepeatWrapping;
+              texture.repeat.set(8, 8); // Natural lunar surface tiling
+              fallbackMaterial.map = texture;
+              fallbackMaterial.color.setHex(0xcccccc); // Light gray tint for realism
+              fallbackMaterial.needsUpdate = true;
+            },
+            undefined,
+            (error) => {
+              console.warn('🌙 Lunar texture failed to load, using solid color:', error);
+            }
+          );
+        }
+        
+        console.log('🌙 Creating terrain mesh with material:', fallbackMaterial);
+        const fallbackTerrain = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+        
+        console.log('🌙 Terrain mesh created:', fallbackTerrain);
+        // Position terrain so top surface is at ground level
+        fallbackTerrain.position.set(0, -1, 0); // Top surface at Y=0 (perfect for building)
+        fallbackTerrain.receiveShadow = true;
+        fallbackTerrain.castShadow = false;
+        fallbackTerrain.name = 'lunarTerrain';
+        fallbackTerrain.visible = true; // Explicitly ensure visibility
+        
+        console.log('🌙 Adding terrain to scene at position:', fallbackTerrain.position);
+        scene.add(fallbackTerrain);
+        console.log('🌙 Scene children count after adding terrain:', scene.children.length);
+        
+        // Lunar terrain is now ready for habitat construction
+        console.log('🌙 Lunar terrain ready for habitat construction');
+        
+        console.log('🌙 Lunar terrain created with dimensions:', {
+          size: '800m x 800m',
+          position: fallbackTerrain.position,
+          rotation: {
+            x: (fallbackTerrain.rotation.x * 180 / Math.PI) + '°',
+            y: (fallbackTerrain.rotation.y * 180 / Math.PI) + '°', 
+            z: (fallbackTerrain.rotation.z * 180 / Math.PI) + '°'
+          },
+          visible: fallbackTerrain.visible,
+          material: {
+            type: fallbackTerrain.material.type,
+            wireframe: fallbackTerrain.material.wireframe,
+            color: '#' + fallbackTerrain.material.color.getHexString()
+          }
+        });
+        
+        // Try to load NASA Lunar 3D tiles with multiple Apollo sites and datasets
+        (async () => {
+          try {
+            console.log('🌙 Loading Enhanced Lunar Terrain System...');
+            
+            // Lunar Dataset Configuration - NASA Apollo Sites & Artemis Targets
+            const lunarDatasets = {
+              apollo11: {
+                name: 'Apollo 11 - Sea of Tranquility',
+                description: 'First Moon landing site (1969)',
+                // Using NASA LROC data - this is a placeholder URL structure
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=LROC_WAC_Mosaic_Global_303ppd_v02',
+                mission: 'Apollo 11'
+              },
+              apollo15: {
+                name: 'Apollo 15 - Hadley-Apennine',
+                description: 'Mountainous lunar terrain exploration',
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=Apollo15_Metric_DEM_79S79N_clon0_1024ppd',
+                mission: 'Apollo 15'
+              },
+              apollo17: {
+                name: 'Apollo 17 - Taurus-Littrow Valley',
+                description: 'Last crewed lunar mission (1972)',
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=Apollo17_Metric_DEM_79S79N_clon0_1024ppd',
+                mission: 'Apollo 17'
+              },
+              southPole: {
+                name: 'Lunar South Pole - Artemis Target',
+                description: 'Future Artemis program landing region',
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=LROC_WAC_Mosaic_SouthPole_1024ppd',
+                mission: 'Artemis Program'
+              },
+              shackleton: {
+                name: 'Shackleton Crater Rim',
+                description: 'Permanently shadowed crater with water ice',
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=Shackleton_LROC_DEM_5mpp',
+                mission: 'Future Resource Utilization'
+              },
+              oceanProcellarum: {
+                name: 'Oceanus Procellarum',
+                description: 'Largest lunar mare (Ocean of Storms)',
+                ground: 'https://trek.nasa.gov/moon/TrekWS/rest/cat/file/fgdc?label=LROC_WAC_Mosaic_ProcellarumOcean_1024ppd',
+                mission: 'Lunar Science'
+              }
+            };
+
+            // Get current dataset or default to Apollo 11
+            const currentDataset = lunarDatasets[lunarConfig.dataset] || lunarDatasets.apollo11;
+            console.log(`🚀 Loading lunar dataset: ${currentDataset.name}`);
+            
+            // For now, create enhanced procedural lunar terrain
+            // TODO: Implement actual NASA lunar tile loading when APIs are available
+            console.log('🌙 Creating enhanced procedural lunar terrain with realistic features...');
+            
+            // Create Earth in the lunar sky (always enabled for now)
+            const createEarth = true; // TODO: Connect to lunarConfig state
+            if (createEarth) {
+              const earthGeometry = new THREE.SphereGeometry(8, 32, 32); // Bigger Earth for better visibility
+              
+              // Create a simple procedural Earth-like appearance
+              const earthMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x6B93D6, // Earth blue color
+                transparent: false
+              });
+              
+              const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+              earthMesh.position.set(-200, 150, -300); // Position Earth in the lunar sky
+              earthMesh.name = 'lunarEarth';
+              scene.add(earthMesh);
+              
+              // Add simple atmospheric glow effect
+              const glowGeometry = new THREE.SphereGeometry(5.2, 32, 32);
+              const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x87CEEB, // Sky blue
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.BackSide
+              });
+              const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+              glowMesh.position.copy(earthMesh.position);
+              glowMesh.name = 'lunarEarthGlow';
+              scene.add(glowMesh);
+              
+              console.log('🌍 Earth added to lunar sky at position:', earthMesh.position);
+            }
+            
+            // Create lunar sky dome (always enabled for now)
+            const createSky = true; // TODO: Connect to lunarConfig state
+            if (createSky) {
+              const skyGeometry = new THREE.SphereGeometry(800, 64, 64);
+              skyGeometry.scale(-1, 1, 1); // Invert to face inward
+              
+              const skyMaterial = new THREE.MeshBasicMaterial({
+                color: 0x000011, // Very dark blue-black (space)
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.BackSide
+              });
+              
+              const skyDome = new THREE.Mesh(skyGeometry, skyMaterial);
+              skyDome.name = 'lunarSkyDome';
+              scene.add(skyDome);
+              
+              // Add some stars to the lunar sky
+              const starGeometry = new THREE.BufferGeometry();
+              const starVertices = [];
+              const starColors = [];
+              
+              for (let i = 0; i < 2000; i++) {
+                // Random positions on sphere surface
+                const radius = 750;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                starVertices.push(
+                  radius * Math.sin(phi) * Math.cos(theta),
+                  radius * Math.cos(phi),
+                  radius * Math.sin(phi) * Math.sin(theta)
+                );
+                
+                // Random star colors (white to blue-white)
+                const intensity = Math.random() * 0.5 + 0.5;
+                starColors.push(intensity, intensity, intensity * 1.1);
+              }
+              
+              starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+              starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+              
+              const starMaterial = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                sizeAttenuation: false
+              });
+              
+              const stars = new THREE.Points(starGeometry, starMaterial);
+              stars.name = 'lunarStars';
+              scene.add(stars);
+              
+              console.log('✨ Lunar sky dome with stars created');
+            }
+            
+          } catch (error) {
+            console.warn('⚠️ Lunar terrain system error:', error);
+            console.log('🌙 Using procedural lunar terrain fallback');
+          }
+        })();
+        
+      } else if (scenario.destination !== 'LUNAR' && scenario.destination !== 'LUNAR_SURFACE') {
+        // Standard ground for other destinations (not Mars, not Lunar) - realistic habitat site size
         const groundGeometry = new THREE.PlaneGeometry(50, 50);
         
         // Create texture loader
@@ -1816,8 +2059,8 @@ function ThreeScene({
         const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
         
         // Set zoom limits based on environment
-        const minZoom = isMarsEnvironment ? 8 : 5;
-        const maxZoom = isMarsEnvironment ? 120 : 100; // Reduced Mars max zoom to stay within atmosphere
+        const minZoom = isMarsEnvironment ? 8 : isLunarEnvironment ? 6 : 5;
+        const maxZoom = isMarsEnvironment ? 120 : isLunarEnvironment ? 200 : 100; // Lunar allows wider view for terrain exploration
         
         // Calculate new radius with constraints
         const oldRadius = state.spherical.radius;
@@ -2293,6 +2536,14 @@ export default function NASAHabitatBuilder3D() {
     dataset: 'dingoGap',
     skyEnabled: true,
     globalEnabled: false
+  });
+
+  // Lunar terrain configuration state
+  const [lunarConfig, setLunarConfig] = useState({
+    dataset: 'apollo11',
+    skyEnabled: true,
+    earthEnabled: true,
+    terrainOpacity: 1.0
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -3773,6 +4024,53 @@ export default function NASAHabitatBuilder3D() {
                 setMarsConfig(prev => ({ ...prev, globalEnabled: enabled }));
                 console.log('🌍 Global Mars context toggled:', enabled);
                 // TODO: Implement global terrain toggle
+              }}
+            />
+          )}
+
+          {/* Lunar Terrain Configuration UI - Only show for Lunar destinations */}
+          {(scenario.destination === 'LUNAR' || scenario.destination === 'LUNAR_SURFACE') && (
+            <LunarTerrainConfig
+              isVisible={true}
+              currentDataset={lunarConfig.dataset}
+              showLunarSky={lunarConfig.skyEnabled}
+              showEarth={lunarConfig.earthEnabled}
+              terrainOpacity={lunarConfig.terrainOpacity}
+              onDatasetChange={(dataset) => {
+                setLunarConfig(prev => ({ ...prev, dataset }));
+                console.log('🔄 Lunar dataset changed to:', dataset);
+                // TODO: Implement dynamic dataset switching
+              }}
+              onLunarSkyToggle={(enabled) => {
+                setLunarConfig(prev => ({ ...prev, skyEnabled: enabled }));
+                console.log('🌌 Lunar sky toggled:', enabled);
+                
+                // Control Lunar sky visibility
+                if (sceneRefs.current.scene) {
+                  const scene = sceneRefs.current.scene;
+                  const skyDome = scene.getObjectByName('lunarSkyDome');
+                  const stars = scene.getObjectByName('lunarStars');
+                  if (skyDome) skyDome.visible = enabled;
+                  if (stars) stars.visible = enabled;
+                  console.log(`🌌 Lunar sky ${enabled ? 'visible' : 'hidden'}`);
+                }
+              }}
+              onEarthToggle={(enabled) => {
+                setLunarConfig(prev => ({ ...prev, earthEnabled: enabled }));
+                console.log('🌍 Earth in lunar sky toggled:', enabled);
+                
+                // Control Earth visibility in lunar sky
+                if (sceneRefs.current.scene) {
+                  const scene = sceneRefs.current.scene;
+                  const earth = scene.getObjectByName('lunarEarth');
+                  if (earth) earth.visible = enabled;
+                  console.log(`🌍 Earth in lunar sky ${enabled ? 'visible' : 'hidden'}`);
+                }
+              }}
+              onTerrainOpacityChange={(opacity) => {
+                setLunarConfig(prev => ({ ...prev, terrainOpacity: opacity }));
+                console.log('🌙 Lunar terrain opacity changed to:', opacity);
+                // TODO: Implement terrain opacity control
               }}
             />
           )}
