@@ -14,6 +14,7 @@ import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 
 // Import your CAD App
 import CADApp from '../../CAD/App';
+import MarsTerrainConfig from './MarsTerrainConfig';
 
 // GLTF Model paths for different module types
 const MODULE_3D_MODELS = {
@@ -939,6 +940,61 @@ interface HabitatObject {
   };
 }
 
+// Load Cesium Ion Mars global dataset
+async function loadCesiumMarsData(scene: THREE.Scene, apiKey: string) {
+  try {
+    const { TilesRenderer } = await import('3d-tiles-renderer');
+    const { CesiumIonAuthPlugin, TileCompressionPlugin } = await import('3d-tiles-renderer/plugins');
+    
+    console.log('🌍 Loading Cesium Ion Global Mars Dataset...');
+    
+    const cesiumMarsAssetId = '3644333'; // Mars global terrain asset ID
+    const cesiumTiles = new TilesRenderer();
+    
+    // Configure Cesium Ion authentication
+    cesiumTiles.registerPlugin(new CesiumIonAuthPlugin({ 
+      apiToken: apiKey, 
+      assetId: cesiumMarsAssetId, 
+      autoRefreshToken: true 
+    }));
+    
+    // Enable compression for better performance
+    cesiumTiles.registerPlugin(new TileCompressionPlugin());
+    
+    // Configure for global Mars rendering
+    cesiumTiles.errorTarget = 12;
+    cesiumTiles.errorThreshold = 60;
+    cesiumTiles.maxDepth = 20;
+    cesiumTiles.lruCache.minSize = 600;
+    cesiumTiles.lruCache.maxSize = 1000;
+    
+    cesiumTiles.addEventListener('load-tile-set', () => {
+      console.log('🌍 Cesium Ion Global Mars terrain loaded!');
+      
+      // Position global Mars data (much larger scale)
+      cesiumTiles.group.rotation.x = -Math.PI / 2; // Different rotation for global data
+      cesiumTiles.group.position.set(0, -1000, 0); // Position below local terrain
+      cesiumTiles.group.scale.setScalar(0.1); // Scale down global data
+      
+      console.log('🗺️ Global Mars context added:', {
+        dataSource: 'Cesium Ion Global Mars Dataset',
+        scale: '1:10 global context',
+        description: 'Provides global Mars context around local terrain'
+      });
+    });
+    
+    cesiumTiles.addEventListener('load-error', (event: any) => {
+      console.warn('Cesium Ion Mars load error:', event.error?.message || 'Check API key');
+    });
+    
+    scene.add(cesiumTiles.group);
+    (scene as any).cesiumMarsTiles = cesiumTiles;
+    
+  } catch (error) {
+    console.warn('Failed to load Cesium Ion Mars data:', error);
+  }
+}
+
 // Create starfield background for space environment
 function createStarField(scene: THREE.Scene, seed: number = 42, starCount: number = 8000, far: number = 800) {
   const positions = new Float32Array(starCount * 3);
@@ -1132,7 +1188,8 @@ function ThreeScene({
 
   // Camera control state - improved approach with fixed zoom
   const isMarsEnvironment = scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT';
-  const initialCameraDistance = isMarsEnvironment ? 300 : isLunarEnvironment ? 200 : 25; // Much higher for large terrain
+  const isLunarEnvironment = scenario.destination === 'LUNAR' || scenario.destination === 'LUNAR_SURFACE';
+  const initialCameraDistance = isMarsEnvironment ? 60 : isLunarEnvironment ? 50 : 25; // Balanced distance for terrain exploration
   
   const cameraStateRef = useRef({
     isRotating: false,
@@ -1160,13 +1217,15 @@ function ThreeScene({
 
   // Initialize Three.js scene
   useEffect(() => {
-    console.log('Initializing Three.js scene...');
-    if (!mountRef.current) {
-      console.log('Mount ref not ready');
-      return;
-    }
-
-    try {
+      console.log('Initializing Three.js scene...');
+      if (isMarsEnvironment) {
+        console.log('🔴 Mars Environment Mode: Layered sky system (Ground -> Mars Atmosphere -> Starfield)');
+        console.log('📷 Camera limits: Min zoom 8m, Max zoom 120m (prevents seeing sky dome walls)');
+      }
+      if (!mountRef.current) {
+        console.log('Mount ref not ready');
+        return;
+      }    try {
       // Get environment configuration based on destination
       const envConfig = getEnvironmentConfig(scenario.destination);
       
@@ -1175,8 +1234,13 @@ function ThreeScene({
       scene.background = new THREE.Color(0x000011); // Very dark blue-black space color
       sceneRef.current = scene;
       
-      // Add star field instead of solid background
-      const starField = createStarField(scene, 42, 6000, 600);
+      // Add star field - adjust for Mars environment to prevent sky conflicts
+      const starField = createStarField(scene, 42, isMarsEnvironment ? 3000 : 6000, 800);
+      if (isMarsEnvironment) {
+        // For Mars: Reduce star intensity and move them much further away to avoid Mars sky conflicts
+        starField.material.opacity = 0.3; // Dimmer stars for Mars (atmosphere blocks some light)
+        starField.position.y = 400; // Move stars higher above Mars atmosphere
+      }
 
       // Camera setup
       const camera = new THREE.PerspectiveCamera(
@@ -1187,8 +1251,9 @@ function ThreeScene({
       );
       cameraRef.current = camera;
       
-      // Store camera ref for drag/drop calculations
+      // Store camera and scene refs for external access
       sceneRefs.current.camera = camera;
+      sceneRefs.current.scene = scene;
 
       // Position camera
       const state = cameraStateRef.current;
@@ -1300,14 +1365,32 @@ function ThreeScene({
           }
         });
         
-        // Try to load NASA Mars 3D tiles
+        // Try to load NASA Mars 3D tiles with multiple datasets and sky
         (async () => {
           try {
-            console.log('Attempting to load NASA Mars Science Laboratory data...');
-            const tilesUrl = 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize_tileset.json';
+            console.log('🔴 Loading Enhanced Mars Terrain System...');
+            
+            // Mars Dataset Configuration
+            const marsDatasets = {
+              dingoGap: {
+                name: 'MSL Dingo Gap',
+                ground: 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize_tileset.json',
+                sky: 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_sky/0528_0260184_to_s64o256_sky_tileset.json',
+                mission: 'Curiosity Rover'
+              },
+              m20Drive: {
+                name: 'Mars 2020 Drive 1004',
+                ground: 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/m20-drive-1004/colorize/m20-drive-1004_tileset.json',
+                mission: 'Perseverance Rover'
+              }
+            };
+
+            // Try primary dataset (MSL Dingo Gap)
+            const primaryDataset = marsDatasets.dingoGap;
+            console.log(`🚀 Loading primary Mars dataset: ${primaryDataset.name}`);
             
             // Test network access first
-            const testResponse = await fetch(tilesUrl, { 
+            const testResponse = await fetch(primaryDataset.ground, { 
               mode: 'cors',
               method: 'HEAD'
             });
@@ -1315,26 +1398,49 @@ function ThreeScene({
             if (testResponse.ok) {
               const { TilesRenderer } = await import('3d-tiles-renderer');
               
-              console.log('NASA data accessible, loading enhanced 3D tiles...');
-              const tiles = new TilesRenderer(tilesUrl);
+              console.log('✅ NASA Mars data accessible, loading enhanced 3D tiles system...');
               
-              // Enhanced 3DTilesRenderer configuration for large terrain
-              tiles.errorTarget = 8;          // Higher quality for large exploration area
-              tiles.errorThreshold = 40;      // Balanced performance vs quality
-              tiles.maxDepth = 18;           // Allow deeper subdivision for detail
-              tiles.displayActiveTiles = false; // Disable debug visualization
+              // Load ground tiles
+              const groundTiles = new TilesRenderer(primaryDataset.ground);
+              
+              // Load Mars sky tiles for 360° atmosphere
+              let skyTiles = null;
+              if (primaryDataset.sky) {
+                try {
+                  skyTiles = new TilesRenderer(primaryDataset.sky);
+                  console.log('🌌 Loading Mars 360° sky atmosphere...');
+                } catch (error) {
+                  console.warn('Sky tiles not available for this dataset:', error);
+                }
+              }
+              
+              // Enhanced 3DTilesRenderer configuration for ground terrain
+              groundTiles.errorTarget = 8;          // Higher quality for large exploration area
+              groundTiles.errorThreshold = 40;      // Balanced performance vs quality
+              groundTiles.maxDepth = 18;           // Allow deeper subdivision for detail
+              groundTiles.displayActiveTiles = false; // Disable debug visualization
               
               // Performance optimization for large terrain
-              tiles.lruCache.minSize = 900;
-              tiles.lruCache.maxSize = 1500;  // Increased cache for large area
-              tiles.lruCache.unloadPercent = 0.05;
+              groundTiles.lruCache.minSize = 900;
+              groundTiles.lruCache.maxSize = 1500;  // Increased cache for large area
+              groundTiles.lruCache.unloadPercent = 0.05;
               
-              tiles.addEventListener('load-tile-set', () => {
-                console.log('✅ NASA Mars terrain loaded successfully!');
+              // Configure sky tiles if available
+              if (skyTiles) {
+                skyTiles.errorTarget = 6;
+                skyTiles.errorThreshold = 20;
+                skyTiles.maxDepth = 12;
+                skyTiles.displayActiveTiles = false;
+                // Share cache between ground and sky for efficiency
+                skyTiles.lruCache = groundTiles.lruCache;
+              }
+              
+              groundTiles.addEventListener('load-tile-set', () => {
+                console.log('✅ NASA Mars ground terrain loaded successfully!');
                 
                 // Position Mars terrain properly
                 const sphere = new THREE.Sphere();
-                tiles.getBoundingSphere(sphere);
+                groundTiles.getBoundingSphere(sphere);
                 
                 console.log('🔍 Mars terrain bounding sphere:', {
                   center: sphere.center,
@@ -1345,16 +1451,16 @@ function ThreeScene({
                   // Scale terrain for massive Mars exploration area (2000m x 2000m)
                   const desiredTerrainSize = 2000; // 2 kilometers - massive exploration and construction area
                   const scale = desiredTerrainSize / (sphere.radius * 2);
-                  tiles.group.scale.setScalar(scale);
+                  groundTiles.group.scale.setScalar(scale);
                   
                   // Position terrain at ground level (Y=0)
-                  tiles.group.position.set(0, 0, 0);
+                  groundTiles.group.position.set(0, 0, 0);
                   
                   // CRITICAL: Ensure Mars terrain is oriented as horizontal ground plane (right-side up)
                   // NASA Mars data comes in Z-up orientation, we need to rotate it to Y-up and flip it right-side up
                   
                   // Rotate to horizontal and flip right-side up
-                  tiles.group.rotation.set(Math.PI / 2, 0, 0); // Rotate X by +90 degrees to make it horizontal and right-side up
+                  groundTiles.group.rotation.set(Math.PI / 2, 0, 0); // Rotate X by +90 degrees to make it horizontal and right-side up
                   
                   // Hide fallback terrain
                   fallbackTerrain.visible = false;
@@ -1367,27 +1473,121 @@ function ThreeScene({
                     scale: scale,
                     terrainSize: desiredTerrainSize + 'm × ' + desiredTerrainSize + 'm',
                     explorationArea: (desiredTerrainSize/1000).toFixed(1) + ' km²',
-                    position: tiles.group.position,
-                    rotation: tiles.group.rotation,
-                    dataSource: 'NASA MSL Curiosity Rover - Dingo Gap',
+                    position: groundTiles.group.position,
+                    rotation: groundTiles.group.rotation,
+                    dataSource: `NASA ${primaryDataset.mission} - ${primaryDataset.name}`,
                     rotationDegrees: {
-                      x: (tiles.group.rotation.x * 180 / Math.PI),
-                      y: (tiles.group.rotation.y * 180 / Math.PI), 
-                      z: (tiles.group.rotation.z * 180 / Math.PI)
+                      x: (groundTiles.group.rotation.x * 180 / Math.PI),
+                      y: (groundTiles.group.rotation.y * 180 / Math.PI), 
+                      z: (groundTiles.group.rotation.z * 180 / Math.PI)
                     }
                   });
                 }
               });
               
-              tiles.addEventListener('load-error', (event: any) => {
-                console.warn('Mars tile load error:', event.error?.message || 'Unknown');
-                console.log('Continuing with fallback Mars terrain');
+              // Handle sky tiles loading
+              if (skyTiles) {
+                skyTiles.addEventListener('load-tile-set', () => {
+                  console.log('🌌 Mars 360° sky atmosphere loaded successfully!');
+                  
+                  // Position sky sphere around the terrain
+                  const skySphere = new THREE.Sphere();
+                  skyTiles.getBoundingSphere(skySphere);
+                  
+                  if (skySphere.radius > 0) {
+                    // Scale sky to be atmospheric layer - smaller than starfield to avoid conflicts
+                    const skyScale = 3.0; // 3x ground size - stays below starfield at 400+ units
+                    skyTiles.group.scale.setScalar(skyScale);
+                    skyTiles.group.position.set(0, 0, 0);
+                    // Same rotation as ground to maintain alignment
+                    skyTiles.group.rotation.set(Math.PI / 2, 0, 0);
+                    
+                    // Adjust Mars sky opacity and rendering to blend with starfield
+                    skyTiles.group.traverse((child) => {
+                      if (child instanceof THREE.Mesh) {
+                        if (child.material) {
+                          // Make Mars atmosphere semi-transparent so stars show through
+                          child.material.transparent = true;
+                          child.material.opacity = 0.8; // Allow some star visibility
+                          child.material.side = THREE.DoubleSide; // Render both sides
+                        }
+                      }
+                    });
+                    
+                    console.log('🌅 Mars atmosphere configured:', {
+                      skyScale: skyScale,
+                      atmosphereRadius: (skySphere.radius * skyScale).toFixed(1) + 'm',
+                      description: '360° Mars atmosphere layer (below starfield)',
+                      layering: 'Ground -> Mars Sky -> Stars'
+                    });
+                  }
+                });
+                
+                skyTiles.addEventListener('load-error', (event: any) => {
+                  console.warn('Mars sky tiles load error:', event.error?.message || 'Unknown');
+                  console.log('Continuing without Mars atmosphere');
+                });
+              }
+              
+              groundTiles.addEventListener('load-error', (event: any) => {
+                console.warn('Mars ground tiles load error:', event.error?.message || 'Unknown');
+                console.log('Trying alternate Mars dataset...');
+                
+                // Try Mars 2020 Perseverance dataset as fallback
+                (async () => {
+                  try {
+                    const fallbackDataset = marsDatasets.m20Drive;
+                    console.log(`🔄 Loading fallback Mars dataset: ${fallbackDataset.name}`);
+                    
+                    const fallbackTiles = new TilesRenderer(fallbackDataset.ground);
+                    fallbackTiles.errorTarget = 8;
+                    fallbackTiles.errorThreshold = 40;
+                    fallbackTiles.maxDepth = 16;
+                    fallbackTiles.lruCache = groundTiles.lruCache;
+                    
+                    fallbackTiles.addEventListener('load-tile-set', () => {
+                      console.log('✅ Mars 2020 Perseverance terrain loaded as fallback!');
+                      // Apply same positioning logic as primary dataset
+                      const sphere = new THREE.Sphere();
+                      fallbackTiles.getBoundingSphere(sphere);
+                      if (sphere.radius > 0) {
+                        const scale = 2000 / (sphere.radius * 2);
+                        fallbackTiles.group.scale.setScalar(scale);
+                        fallbackTiles.group.position.set(0, 0, 0);
+                        fallbackTiles.group.rotation.set(Math.PI / 2, 0, 0);
+                        fallbackTerrain.visible = false;
+                      }
+                    });
+                    
+                    scene.add(fallbackTiles.group);
+                    (scene as any).marsFallbackTiles = fallbackTiles;
+                  } catch (error) {
+                    console.warn('Mars 2020 dataset also failed:', error);
+                    console.log('Continuing with procedural Mars terrain');
+                  }
+                })();
               });
               
-              scene.add(tiles.group);
+              // Add both ground and sky to scene
+              scene.add(groundTiles.group);
+              if (skyTiles) {
+                scene.add(skyTiles.group);
+              }
               
-              // Store tiles reference for updates
-              (scene as any).marsTiles = tiles;
+              // Store tiles references for updates
+              (scene as any).marsGroundTiles = groundTiles;
+              if (skyTiles) {
+                (scene as any).marsSkyTiles = skyTiles;
+              }
+              
+              // Try to add Cesium Ion Mars data if API key is available
+              const cesiumApiKey = import.meta.env?.VITE_CESIUM_ION_KEY;
+              if (cesiumApiKey) {
+                console.log('🌍 Cesium Ion API key detected, loading global Mars dataset...');
+                loadCesiumMarsData(scene, cesiumApiKey);
+              } else {
+                console.log('💡 To enable global Mars terrain, add VITE_CESIUM_ION_KEY to your .env file');
+              }
               
             } else {
               console.warn('NASA data not accessible, using fallback Mars terrain');
@@ -1617,7 +1817,7 @@ function ThreeScene({
         
         // Set zoom limits based on environment
         const minZoom = isMarsEnvironment ? 8 : 5;
-        const maxZoom = isMarsEnvironment ? 300 : 100;
+        const maxZoom = isMarsEnvironment ? 120 : 100; // Reduced Mars max zoom to stay within atmosphere
         
         // Calculate new radius with constraints
         const oldRadius = state.spherical.radius;
@@ -1710,12 +1910,33 @@ function ThreeScene({
           camera.position.y = minHeight;
         }
         
-        // Update Mars tiles if available
-        if ((scene as any).marsTiles) {
-          const tiles = (scene as any).marsTiles;
-          tiles.setCamera(camera);
-          tiles.setResolutionFromRenderer(camera, renderer);
-          tiles.update();
+        // Update all Mars tile renderers if available
+        if ((scene as any).marsGroundTiles) {
+          const groundTiles = (scene as any).marsGroundTiles;
+          groundTiles.setCamera(camera);
+          groundTiles.setResolutionFromRenderer(camera, renderer);
+          groundTiles.update();
+        }
+        
+        if ((scene as any).marsSkyTiles) {
+          const skyTiles = (scene as any).marsSkyTiles;
+          skyTiles.setCamera(camera);
+          skyTiles.setResolutionFromRenderer(camera, renderer);
+          skyTiles.update();
+        }
+        
+        if ((scene as any).marsFallbackTiles) {
+          const fallbackTiles = (scene as any).marsFallbackTiles;
+          fallbackTiles.setCamera(camera);
+          fallbackTiles.setResolutionFromRenderer(camera, renderer);
+          fallbackTiles.update();
+        }
+        
+        if ((scene as any).cesiumMarsTiles) {
+          const cesiumTiles = (scene as any).cesiumMarsTiles;
+          cesiumTiles.setCamera(camera);
+          cesiumTiles.setResolutionFromRenderer(camera, renderer);
+          cesiumTiles.update();
         }
         
         renderer.render(scene, camera);
@@ -1757,12 +1978,37 @@ function ThreeScene({
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
         
-        // Cleanup Mars tiles if available
-        if ((sceneRef.current as any)?.marsTiles) {
+        // Cleanup all Mars tiles if available
+        const sceneAny = sceneRef.current as any;
+        if (sceneAny?.marsGroundTiles) {
           try {
-            (sceneRef.current as any).marsTiles.dispose();
+            sceneAny.marsGroundTiles.dispose();
           } catch (error) {
-            console.warn('Error disposing Mars tiles:', error);
+            console.warn('Error disposing Mars ground tiles:', error);
+          }
+        }
+        
+        if (sceneAny?.marsSkyTiles) {
+          try {
+            sceneAny.marsSkyTiles.dispose();
+          } catch (error) {
+            console.warn('Error disposing Mars sky tiles:', error);
+          }
+        }
+        
+        if (sceneAny?.marsFallbackTiles) {
+          try {
+            sceneAny.marsFallbackTiles.dispose();
+          } catch (error) {
+            console.warn('Error disposing Mars fallback tiles:', error);
+          }
+        }
+        
+        if (sceneAny?.cesiumMarsTiles) {
+          try {
+            sceneAny.cesiumMarsTiles.dispose();
+          } catch (error) {
+            console.warn('Error disposing Cesium Mars tiles:', error);
           }
         }
         
@@ -2041,6 +2287,13 @@ export default function NASAHabitatBuilder3D() {
   const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'cad' | 'analyses'>(() => 
     loadFromStorage(STORAGE_KEYS.ACTIVE_TAB, 'design')
   );
+
+  // Mars terrain configuration state
+  const [marsConfig, setMarsConfig] = useState({
+    dataset: 'dingoGap',
+    skyEnabled: true,
+    globalEnabled: false
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   
@@ -2417,11 +2670,13 @@ export default function NASAHabitatBuilder3D() {
     renderer: THREE.WebGLRenderer | null;
     raycaster: THREE.Raycaster | null;
     plane: THREE.Plane | null;
+    scene?: any;
   }>({
     camera: null,
     renderer: null,
     raycaster: null,
-    plane: null
+    plane: null,
+    scene: null
   });
 
   // Helper function to calculate 3D position from mouse coordinates
@@ -3489,8 +3744,41 @@ export default function NASAHabitatBuilder3D() {
             }}
           />
 
+          {/* Mars Terrain Configuration UI - Only show for Mars destinations */}
+          {(scenario.destination === 'MARS_SURFACE' || scenario.destination === 'MARS_TRANSIT') && (
+            <MarsTerrainConfig
+              currentDataset={marsConfig.dataset}
+              skyEnabled={marsConfig.skyEnabled}
+              globalEnabled={marsConfig.globalEnabled}
+              cesiumApiKeyAvailable={!!import.meta.env?.VITE_CESIUM_ION_KEY}
+              onDatasetChange={(dataset) => {
+                setMarsConfig(prev => ({ ...prev, dataset }));
+                console.log('🔄 Mars dataset changed to:', dataset);
+                // TODO: Implement dynamic dataset switching
+              }}
+              onSkyToggle={(enabled) => {
+                setMarsConfig(prev => ({ ...prev, skyEnabled: enabled }));
+                console.log('🌌 Mars sky toggled:', enabled);
+                
+                // Control Mars sky visibility to prevent conflicts with starfield
+                if (sceneRefs.current.scene) {
+                  const scene = sceneRefs.current.scene;
+                  if (scene.marsSkyTiles) {
+                    scene.marsSkyTiles.group.visible = enabled;
+                    console.log(`🌌 Mars atmosphere ${enabled ? 'visible' : 'hidden'} - starfield remains visible`);
+                  }
+                }
+              }}
+              onGlobalToggle={(enabled) => {
+                setMarsConfig(prev => ({ ...prev, globalEnabled: enabled }));
+                console.log('🌍 Global Mars context toggled:', enabled);
+                // TODO: Implement global terrain toggle
+              }}
+            />
+          )}
+
           {/* Enhanced NASA Mission Info with Compliance Status */}
-          <div className="absolute top-6 right-6 glass-morphism rounded-xl p-4 shadow-2xl border border-blue-500/30 glow-blue">
+          <div className="absolute top-6 left-6 glass-morphism rounded-xl p-4 shadow-2xl border border-blue-500/30 glow-blue">
             <div className="text-sm space-y-2">
               <div className="font-medium text-blue-300 flex items-center gap-2 text-shadow">
                 <Settings className="w-4 h-4" />
