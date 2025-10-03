@@ -1649,7 +1649,7 @@ function ThreeScene({
               console.log('🌙 Lunar surface texture applied successfully');
               texture.wrapS = THREE.RepeatWrapping;
               texture.wrapT = THREE.RepeatWrapping;
-              texture.repeat.set(8, 8); // Natural lunar surface tiling
+              texture.repeat.set(2, 2); // Minimal tiling to reduce repetition
               fallbackMaterial.map = texture;
               fallbackMaterial.color.setHex(0xcccccc); // Light gray tint for realism
               fallbackMaterial.needsUpdate = true;
@@ -2520,11 +2520,14 @@ export default function NASAHabitatBuilder3D() {
   
   // State for collapsible sections
   const [showNasaFunctional, setShowNasaFunctional] = useState(true);
-
   const [showNasaMission, setShowNasaMission] = useState(true);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [showModuleInspector, setShowModuleInspector] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showCustomCAD, setShowCustomCAD] = useState(true);
+  const [showNasaAssistant, setShowNasaAssistant] = useState(true);
+  const [showValidation, setShowValidation] = useState(true);
+  const [showCorridors, setShowCorridors] = useState(true);
   
   // New state for save/load functionality
   const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'cad' | 'analyses'>(() => 
@@ -3433,13 +3436,17 @@ export default function NASAHabitatBuilder3D() {
                     ...prev,
                     destination: e.target.value as any
                   }))}
-                  className="w-full bg-background border border-border text-foreground text-xs h-7 rounded-md px-2 hover:bg-accent/50 transition-colors focus:ring-1 focus:ring-primary/50"
+                  className="w-full bg-gray-800/70 backdrop-blur-sm border border-border text-white text-xs h-7 rounded-md px-2 hover:bg-gray-700/70 transition-colors focus:ring-1 focus:ring-primary/50"
+                  style={{
+                    backgroundColor: 'rgba(75, 85, 99, 0.7)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 >
-                  <option value="LEO">Low Earth Orbit</option>
-                  <option value="LUNAR">Lunar Surface</option>
-                  <option value="MARS_TRANSIT">Mars Transit</option>
-                  <option value="MARS_SURFACE">Mars Surface</option>
-                  <option value="DEEP_SPACE">Deep Space</option>
+                  <option value="LEO" className="bg-gray-800/90 text-white">Low Earth Orbit</option>
+                  <option value="LUNAR" className="bg-gray-800/90 text-white">Lunar Surface</option>
+                  <option value="MARS_TRANSIT" className="bg-gray-800/90 text-white">Mars Transit</option>
+                  <option value="MARS_SURFACE" className="bg-gray-800/90 text-white">Mars Surface</option>
+                  <option value="DEEP_SPACE" className="bg-gray-800/90 text-white">Deep Space</option>
                 </select>
               </div>
               <div>
@@ -3452,10 +3459,14 @@ export default function NASAHabitatBuilder3D() {
                       setScenario((prev: Scenario) => ({ ...prev, fairing }));
                     }
                   }}
-                  className="w-full bg-background border border-border text-foreground text-xs h-7 rounded-md px-2 hover:bg-accent/50 transition-colors focus:ring-1 focus:ring-primary/50"
+                  className="w-full bg-gray-800/70 backdrop-blur-sm border border-border text-white text-xs h-7 rounded-md px-2 hover:bg-gray-700/70 transition-colors focus:ring-1 focus:ring-primary/50"
+                  style={{
+                    backgroundColor: 'rgba(75, 85, 99, 0.7)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 >
                   {FAIRINGS.map(fairing => (
-                    <option key={fairing.name} value={fairing.name}>
+                    <option key={fairing.name} value={fairing.name} className="bg-gray-800/90 text-white">
                       {fairing.name}
                     </option>
                   ))}
@@ -3544,52 +3555,64 @@ export default function NASAHabitatBuilder3D() {
 
           {/* Custom CAD Shapes */}
           <div className="p-3 border-b border-border">
-            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+            <h3 
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-purple-400 transition-colors"
+              onClick={() => setShowCustomCAD(!showCustomCAD)}
+            >
               <Settings className="w-4 h-4 text-purple-400" />
               Custom CAD Builder
+              {showCustomCAD ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
             </h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              Design custom habitat modules with professional 3D modeling tools
-            </p>
-            {customCADShapes.length > 0 && (
-              <div className="space-y-2 max-h-32 overflow-y-auto mb-3">
-                {customCADShapes.map((shape, index) => (
-                  <div
-                    key={shape.id || index}
-                    onClick={() => handleUseCADShape(shape)}
-                    className="group flex items-center gap-2 p-2 bg-card/40 hover:bg-purple-600/20 border border-purple-500/40 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
-                  >
-                    <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center text-white text-sm flex-shrink-0">
-                      🔧
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground text-xs truncate">
-                        {shape.name || `Custom Shape ${index + 1}`}
+            {showCustomCAD && (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Design custom habitat modules with professional 3D modeling tools
+                </p>
+                {customCADShapes.length > 0 && (
+                  <div className="space-y-2 max-h-32 overflow-y-auto mb-3">
+                    {customCADShapes.map((shape, index) => (
+                      <div
+                        key={shape.id || index}
+                        onClick={() => handleUseCADShape(shape)}
+                        className="group flex items-center gap-2 p-2 bg-card/40 hover:bg-purple-600/20 border border-purple-500/40 rounded-lg cursor-pointer transition-all duration-200 backdrop-blur-sm hover:shadow-lg"
+                      >
+                        <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center text-white text-sm flex-shrink-0">
+                          🔧
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-foreground text-xs truncate">
+                            {shape.name || `Custom Shape ${index + 1}`}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            Custom Module
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Custom Module
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+                <Button
+                  onClick={() => setActiveTab('cad')}
+                  className="w-full text-xs h-8 bg-purple-600/80 hover:bg-purple-600 flex items-center gap-2"
+                >
+                  <Settings className="w-3 h-3" />
+                  Open CAD Builder
+                </Button>
+              </>
             )}
-            <Button
-              onClick={() => setActiveTab('cad')}
-              className="w-full text-xs h-8 bg-purple-600/80 hover:bg-purple-600 flex items-center gap-2"
-            >
-              <Settings className="w-3 h-3" />
-              Open CAD Builder
-            </Button>
           </div>
 
           {/* NASA Compliance Assistant */}
           <div className="p-3 border-b border-border">
-            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+            <h3 
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-yellow-400 transition-colors"
+              onClick={() => setShowNasaAssistant(!showNasaAssistant)}
+            >
               <Lightbulb className="w-4 h-4 text-yellow-400" />
               NASA Assistant
+              {showNasaAssistant ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
             </h3>
-            {(() => {
+            {showNasaAssistant && (() => {
               const requirements = getNASARequirementMultiplier(scenario.mission_duration_days);
               const recommendations: string[] = [];
               
@@ -3660,174 +3683,186 @@ export default function NASAHabitatBuilder3D() {
 
           {/* Enhanced NASA Compliance Panel with Visual Controls */}
           <div className="p-3 border-b border-border">
-            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+            <h3 
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-green-400 transition-colors"
+              onClick={() => setShowValidation(!showValidation)}
+            >
               <CheckCircle className="w-4 h-4 text-green-400" />
               NASA Compliance Status
+              {showValidation ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
             </h3>
-            <div className="space-y-2">
-              {(() => {
-                // Enhanced compliance analysis
-                const complianceAnalysis = analyzeModuleCompliance(objects);
-                const totalViolations = complianceAnalysis.violations.length;
-                const totalCompliance = Math.max(0, 100 - (totalViolations * 15));
-                const complianceColor = totalCompliance >= 80 ? 'text-green-400' :
-                                      totalCompliance >= 60 ? 'text-yellow-400' : 'text-red-400';
+            {showValidation && (
+              <div className="space-y-2">
+                {(() => {
+                  // Enhanced compliance analysis
+                  const complianceAnalysis = analyzeModuleCompliance(objects);
+                  const totalViolations = complianceAnalysis.violations.length;
+                  const totalCompliance = Math.max(0, 100 - (totalViolations * 15));
+                  const complianceColor = totalCompliance >= 80 ? 'text-green-400' :
+                                        totalCompliance >= 60 ? 'text-yellow-400' : 'text-red-400';
 
-                const statusCounts = {
-                  compliant: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'compliant').length,
-                  warning: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'warning').length,
-                  violation: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'violation').length
-                };
+                  const statusCounts = {
+                    compliant: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'compliant').length,
+                    warning: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'warning').length,
+                    violation: Object.values(complianceAnalysis.moduleStatus).filter(s => s === 'violation').length
+                  };
 
-                return (
-                  <div>
-                    <div className={`text-lg font-bold ${complianceColor} flex items-center gap-2`}>
-                      {totalCompliance}% Compliant
-                      {totalCompliance === 100 && <span className="text-sm">🏆</span>}
-                    </div>
-                    
-                    {/* Visual Legend */}
-                    <div className="mt-2 p-2 bg-card/20 rounded border border-border">
-                      <div className="text-xs text-gray-300 font-medium mb-1">3D Visual Indicators:</div>
-                      <div className="space-y-1 text-[10px]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-400 rounded"></div>
-                          <span className="text-green-300">Compliant ({statusCounts.compliant})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-orange-400 rounded"></div>
-                          <span className="text-orange-300">Warning ({statusCounts.warning})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-red-400 rounded"></div>
-                          <span className="text-red-300">Violation ({statusCounts.violation})</span>
-                        </div>
+                  return (
+                    <div>
+                      <div className={`text-lg font-bold ${complianceColor} flex items-center gap-2`}>
+                        {totalCompliance}% Compliant
+                        {totalCompliance === 100 && <span className="text-sm">🏆</span>}
                       </div>
-                      <div className="text-[9px] text-gray-400 mt-2">
-                        🔴 Red lines show separation violations
-                        <br />🟠 Orange zones show 3m safety areas
-                        <br />⚠️ Icons mark non-compliant modules
-                      </div>
-                    </div>
-                    
-                    {totalViolations > 0 && (
-                      <div className="text-red-300 mt-2 p-2 bg-red-900/20 rounded border border-red-500/30">
-                        <div className="font-medium text-xs">⚠️ {totalViolations} Active Violations:</div>
-                        {complianceAnalysis.violations.slice(0, 2).map((violation, idx) => (
-                          <div key={idx} className="text-[10px] ml-2 mt-1">
-                            • {violation.distance.toFixed(1)}m separation (min: {violation.minDistance}m)
+                      
+                      {/* Visual Legend */}
+                      <div className="mt-2 p-2 bg-card/20 rounded border border-border">
+                        <div className="text-xs text-gray-300 font-medium mb-1">3D Visual Indicators:</div>
+                        <div className="space-y-1 text-[10px]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-400 rounded"></div>
+                            <span className="text-green-300">Compliant ({statusCounts.compliant})</span>
                           </div>
-                        ))}
-                        {complianceAnalysis.violations.length > 2 && (
-                          <div className="text-[10px] text-gray-400 ml-2">
-                            +{complianceAnalysis.violations.length - 2} more...
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-orange-400 rounded"></div>
+                            <span className="text-orange-300">Warning ({statusCounts.warning})</span>
                           </div>
-                        )}
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-red-400 rounded"></div>
+                            <span className="text-red-300">Violation ({statusCounts.violation})</span>
+                          </div>
+                        </div>
+                        <div className="text-[9px] text-gray-400 mt-2">
+                          🔴 Red lines show separation violations
+                          <br />🟠 Orange zones show 3m safety areas
+                          <br />⚠️ Icons mark non-compliant modules
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
+                      
+                      {totalViolations > 0 && (
+                        <div className="text-red-300 mt-2 p-2 bg-red-900/20 rounded border border-red-500/30">
+                          <div className="font-medium text-xs">⚠️ {totalViolations} Active Violations:</div>
+                          {complianceAnalysis.violations.slice(0, 2).map((violation, idx) => (
+                            <div key={idx} className="text-[10px] ml-2 mt-1">
+                              • {violation.distance.toFixed(1)}m separation (min: {violation.minDistance}m)
+                            </div>
+                          ))}
+                          {complianceAnalysis.violations.length > 2 && (
+                            <div className="text-[10px] text-gray-400 ml-2">
+                              +{complianceAnalysis.violations.length - 2} more...
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Enhanced Corridor Connections Panel */}
           <div className="p-3 border-b border-border">
-            <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+            <h3 
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-blue-400 transition-colors"
+              onClick={() => setShowCorridors(!showCorridors)}
+            >
               <Network className="w-4 h-4 text-blue-400" />
               Pressurized Corridors
+              {showCorridors ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
             </h3>
-            <div className="space-y-2">
-              {(() => {
-                const complianceAnalysis = analyzeModuleCompliance(objects);
-                const corridorConnections = complianceAnalysis.corridorAnalysis?.corridors || [];
-                const corridorStats = {
-                  total: corridorConnections.length,
-                  valid: corridorConnections.filter(c => c.validationType === 'valid').length,
-                  warning: corridorConnections.filter(c => c.validationType === 'warning').length,
-                  invalid: corridorConnections.filter(c => c.validationType === 'invalid').length,
-                  unconnected: complianceAnalysis.corridorAnalysis?.unconnectedModules?.length || 0
-                };
+            {showCorridors && (
+              <div className="space-y-2">
+                {(() => {
+                  const complianceAnalysis = analyzeModuleCompliance(objects);
+                  const corridorConnections = complianceAnalysis.corridorAnalysis?.corridors || [];
+                  const corridorStats = {
+                    total: corridorConnections.length,
+                    valid: corridorConnections.filter(c => c.validationType === 'valid').length,
+                    warning: corridorConnections.filter(c => c.validationType === 'warning').length,
+                    invalid: corridorConnections.filter(c => c.validationType === 'invalid').length,
+                    unconnected: complianceAnalysis.corridorAnalysis?.unconnectedModules?.length || 0
+                  };
 
-                const totalModules = objects.filter(obj => obj.userData?.isHabitatModule).length;
-                const connectionRate = totalModules > 0 
-                  ? Math.round(((totalModules - corridorStats.unconnected) / totalModules) * 100) 
-                  : 0;
+                  const totalModules = objects.filter(obj => obj.userData?.isHabitatModule).length;
+                  const connectionRate = totalModules > 0 
+                    ? Math.round(((totalModules - corridorStats.unconnected) / totalModules) * 100) 
+                    : 0;
 
-                return (
-                  <div>
-                    <div className="text-lg font-bold text-blue-300 flex items-center gap-2">
-                      {connectionRate}% Connected
-                      {connectionRate === 100 && corridorStats.invalid === 0 && <span className="text-sm">🚀</span>}
-                    </div>
-                    
-                    {/* Corridor Statistics */}
-                    <div className="mt-2 p-2 bg-card/20 rounded border border-border">
-                      <div className="text-xs text-gray-300 font-medium mb-1">Connection Status:</div>
-                      <div className="space-y-1 text-[10px]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-400 rounded"></div>
-                          <span className="text-green-300">Valid Corridors ({corridorStats.valid})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-yellow-400 rounded"></div>
-                          <span className="text-yellow-300">Long Corridors ({corridorStats.warning})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-red-400 rounded"></div>
-                          <span className="text-red-300">Invalid Corridors ({corridorStats.invalid})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-gray-500 rounded"></div>
-                          <span className="text-gray-300">Unconnected Modules ({corridorStats.unconnected})</span>
-                        </div>
+                  return (
+                    <div>
+                      <div className="text-lg font-bold text-blue-300 flex items-center gap-2">
+                        {connectionRate}% Connected
+                        {connectionRate === 100 && corridorStats.invalid === 0 && <span className="text-sm">🚀</span>}
                       </div>
-                      <div className="text-[9px] text-gray-400 mt-2">
-                        🟢 &lt;15m optimal, 🟡 15-30m acceptable, 🔴 &gt;30m unsafe
-                        <br />💡 1.5m diameter pressurized walkways
-                        <br />🎯 Click modules to create connections
-                      </div>
-                    </div>
-
-                    {/* Corridor Details */}
-                    {corridorStats.total > 0 && (
-                      <div className="mt-2 p-2 bg-blue-900/20 rounded border border-blue-500/30">
-                        <div className="text-xs text-blue-300 font-medium mb-1">Active Connections:</div>
-                        {corridorConnections.slice(0, 3).map((corridor, idx) => {
-                          const moduleA = objects.find(obj => obj.id === corridor.moduleA);
-                          const moduleB = objects.find(obj => obj.id === corridor.moduleB);
-                          return (
-                            <div key={idx} className="text-[10px] ml-2 mt-1 flex items-center gap-1">
-                              <div className={`w-1 h-1 rounded ${
-                                corridor.validationType === 'valid' ? 'bg-green-400' :
-                                corridor.validationType === 'warning' ? 'bg-yellow-400' : 'bg-red-400'
-                              }`}></div>
-                              <span className="text-gray-300">
-                                {moduleA?.type || corridor.moduleA} ↔ {moduleB?.type || corridor.moduleB} 
-                                ({corridor.length.toFixed(1)}m)
-                              </span>
-                            </div>
-                          );
-                        })}
-                        {corridorConnections.length > 3 && (
-                          <div className="text-[10px] text-gray-400 ml-2 mt-1">
-                            +{corridorConnections.length - 3} more corridors...
+                      
+                      {/* Corridor Statistics */}
+                      <div className="mt-2 p-2 bg-card/20 rounded border border-border">
+                        <div className="text-xs text-gray-300 font-medium mb-1">Connection Status:</div>
+                        <div className="space-y-1 text-[10px]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-400 rounded"></div>
+                            <span className="text-green-300">Valid Corridors ({corridorStats.valid})</span>
                           </div>
-                        )}
-                      </div>
-                    )}
-
-                    {corridorStats.unconnected > 0 && (
-                      <div className="mt-2 p-2 bg-orange-900/20 rounded border border-orange-500/30">
-                        <div className="text-xs text-orange-300 font-medium">
-                          ⚠️ {corridorStats.unconnected} isolated module{corridorStats.unconnected > 1 ? 's' : ''} need connections
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-yellow-400 rounded"></div>
+                            <span className="text-yellow-300">Long Corridors ({corridorStats.warning})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-red-400 rounded"></div>
+                            <span className="text-red-300">Invalid Corridors ({corridorStats.invalid})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-gray-500 rounded"></div>
+                            <span className="text-gray-300">Unconnected Modules ({corridorStats.unconnected})</span>
+                          </div>
+                        </div>
+                        <div className="text-[9px] text-gray-400 mt-2">
+                          🟢 &lt;15m optimal, 🟡 15-30m acceptable, 🔴 &gt;30m unsafe
+                          <br />💡 1.5m diameter pressurized walkways
+                          <br />🎯 Click modules to create connections
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
+
+                      {/* Corridor Details */}
+                      {corridorStats.total > 0 && (
+                        <div className="mt-2 p-2 bg-blue-900/20 rounded border border-blue-500/30">
+                          <div className="text-xs text-blue-300 font-medium mb-1">Active Connections:</div>
+                          {corridorConnections.slice(0, 3).map((corridor, idx) => {
+                            const moduleA = objects.find(obj => obj.id === corridor.moduleA);
+                            const moduleB = objects.find(obj => obj.id === corridor.moduleB);
+                            return (
+                              <div key={idx} className="text-[10px] ml-2 mt-1 flex items-center gap-1">
+                                <div className={`w-1 h-1 rounded ${
+                                  corridor.validationType === 'valid' ? 'bg-green-400' :
+                                  corridor.validationType === 'warning' ? 'bg-yellow-400' : 'bg-red-400'
+                                }`}></div>
+                                <span className="text-gray-300">
+                                  {moduleA?.type || corridor.moduleA} ↔ {moduleB?.type || corridor.moduleB} 
+                                  ({corridor.length.toFixed(1)}m)
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {corridorConnections.length > 3 && (
+                            <div className="text-[10px] text-gray-400 ml-2 mt-1">
+                              +{corridorConnections.length - 3} more corridors...
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {corridorStats.unconnected > 0 && (
+                        <div className="mt-2 p-2 bg-orange-900/20 rounded border border-orange-500/30">
+                          <div className="text-xs text-orange-300 font-medium">
+                            ⚠️ {corridorStats.unconnected} isolated module{corridorStats.unconnected > 1 ? 's' : ''} need connections
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Selected Module Inspector */}
