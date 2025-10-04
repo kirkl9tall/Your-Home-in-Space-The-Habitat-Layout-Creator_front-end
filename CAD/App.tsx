@@ -124,7 +124,7 @@ const App: React.FC = () => {
             <ChevronLeftIcon className={`w-4 h-4 transition-transform duration-300 ${isInspectorCollapsed ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Camera and Help buttons positioned in canvas area */}
+          {/* Camera, Export, and Help buttons positioned in canvas area */}
           <div className="absolute bottom-4 right-4 z-30 flex items-center gap-2">
             <button
               onClick={() => setIsCameraInfoOpen(true)}
@@ -133,6 +133,46 @@ const App: React.FC = () => {
               className="w-10 h-10 flex items-center justify-center bg-[var(--color-panel-light)]/80 backdrop-blur-sm text-[var(--color-text-secondary)] rounded-full shadow-lg border border-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-white hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
             >
               <CameraIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                // Get the current scene/objects from the CAD system
+                const selectedObjects = Object.values(objects).filter(obj => selectedObjectIds.includes(obj.id));
+                
+                if (selectedObjects.length === 0) {
+                  alert('Please select objects to export to the design area.');
+                  return;
+                }
+                
+                // For now, create a simple representation of the CAD objects
+                // In a real implementation, you would export to GLB format
+                const exportData = {
+                  type: 'CAD_EXPORT',
+                  payload: {
+                    name: `CAD Export ${new Date().toLocaleTimeString()}`,
+                    objects: selectedObjects,
+                    dimensions: { w_m: 2, l_m: 2, h_m: 2 } // Default dimensions
+                  }
+                };
+                
+                // Send to parent window (the main habitat builder)
+                if (window.parent !== window) {
+                  window.parent.postMessage(exportData, '*');
+                } else {
+                  // If not in iframe, use localStorage as fallback
+                  localStorage.setItem('cad_export', JSON.stringify(exportData));
+                  window.dispatchEvent(new Event('cad_export'));
+                }
+                
+                console.log('✅ Exported CAD objects to design area');
+              }}
+              aria-label="Export to Design Area"
+              title="Export to Design Area"
+              className="w-10 h-10 flex items-center justify-center bg-gradient-to-br from-green-600 to-emerald-600 text-white rounded-full shadow-lg border border-green-500/30 hover:from-green-500 hover:to-emerald-500 hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
             </button>
             <button
               onClick={() => setIsHelpOpen(true)}

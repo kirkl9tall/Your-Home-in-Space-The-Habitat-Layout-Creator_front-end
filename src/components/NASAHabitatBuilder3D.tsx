@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft, Sparkles, Home, Rocket, Moon } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft, Sparkles, Home, Rocket, Moon, MessageCircle } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -16,6 +16,36 @@ import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
 import CADApp from '../../CAD/App';
 import MarsTerrainConfig from './MarsTerrainConfig';
 import LunarTerrainConfig from './LunarTerrainConfig';
+// Import AI Chat Interface
+import { ChatInterface } from '@/components/ai/ChatInterface';
+
+// Available GLB Models for drag and drop
+const AVAILABLE_GLB_MODELS = [
+  {
+    id: 'habitat_dem',
+    name: 'Habitat Demo',
+    path: '/models/habitat_dem.glb',
+    preview: '🏠',
+    category: 'Habitat',
+    description: 'Demo habitat structure'
+  },
+  {
+    id: 'habitat_dem1',
+    name: 'Habitat Demo 1',
+    path: '/models/habitat_dem1.glb',
+    preview: '🏘️',
+    category: 'Habitat',
+    description: 'Alternative habitat design'
+  },
+  {
+    id: 'space_station',
+    name: 'Space Station',
+    path: '/models/space_station.glb',
+    preview: '🛰️',
+    category: 'Station',
+    description: 'Space station module'
+  }
+] as const;
 
 // GLTF Model paths for different module types
 const MODULE_3D_MODELS = {
@@ -995,6 +1025,8 @@ interface HabitatObject {
     l_m: number;
     h_m: number;
   };
+  glbPath?: string; // Optional path to GLB model file
+  name?: string;    // Optional custom name for the object
 }
 
 // Load Cesium Ion Mars global dataset
@@ -1221,7 +1253,7 @@ function ThreeScene({
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
-  const meshesRef = useRef(new Map<string, THREE.Mesh>());
+  const meshesRef = useRef(new Map<string, THREE.Object3D>());
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
@@ -1993,16 +2025,36 @@ function ThreeScene({
           mouseRef.current.set(x, y);
           raycasterRef.current.setFromCamera(mouseRef.current, camera);
           
-          const meshes = Array.from(meshesRef.current.values());
-          const intersects = raycasterRef.current.intersectObjects(meshes, false); // Only meshes, no descendants
+          const objects = Array.from(meshesRef.current.values());
+          const intersects = raycasterRef.current.intersectObjects(objects, true); // Recursive to include GLB model children
           
           if (intersects.length > 0) {
-            const clickedId = intersects[0].object.userData.id;
-            setSelectedIdRef.current(clickedId);
-            isDraggingObjectRef.current = true;
-            const selectedMesh = intersects[0].object;
-            const intersectionPoint = intersects[0].point;
-            dragOffsetRef.current.copy(selectedMesh.position).sub(intersectionPoint);
+            // Find the object with userData.id (might be the object itself or its parent for GLB models)
+            let targetObject = intersects[0].object;
+            let clickedId = targetObject.userData.id || targetObject.userData.parentId;
+            
+            // If the clicked object doesn't have an id, traverse up to find the parent with id
+            while (!clickedId && targetObject.parent) {
+              targetObject = targetObject.parent;
+              clickedId = targetObject.userData?.id || targetObject.userData?.parentId;
+            }
+            
+            // If we found a parentId, get the actual parent object from meshes
+            if (clickedId && targetObject.userData?.parentId) {
+              targetObject = meshesRef.current.get(clickedId) || targetObject;
+            }
+            
+            if (clickedId) {
+              setSelectedIdRef.current(clickedId);
+              isDraggingObjectRef.current = true;
+              const intersectionPoint = intersects[0].point;
+              dragOffsetRef.current.copy(targetObject.position).sub(intersectionPoint);
+            } else {
+              // No valid object found
+              setSelectedIdRef.current(null);
+              state.isRotating = true;
+              state.previousMouse = { x: event.clientX, y: event.clientY };
+            }
           } else {
             setSelectedIdRef.current(null);
             state.isRotating = true;
@@ -2354,16 +2406,49 @@ function ThreeScene({
     const complianceAnalysis = analyzeModuleCompliance(objects);
     
     // CRITICAL FIX: Prevent duplication by properly clearing ALL scene objects
-    // Remove existing meshes
-    meshesRef.current.forEach((mesh) => {
-      if (sceneRef.current && mesh.parent === sceneRef.current) {
-        sceneRef.current.remove(mesh);
+    // Remove existing meshes and GLB models
+    meshesRef.current.forEach((object) => {
+      if (sceneRef.current && object.parent === sceneRef.current) {
+        sceneRef.current.remove(object);
       }
-      mesh.geometry.dispose();
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach(material => material.dispose());
-      } else {
-        mesh.material.dispose();
+      
+      // Safely dispose of resources based on object type
+      if (object instanceof THREE.Mesh) {
+        // Handle regular meshes
+        if (object.geometry) {
+          object.geometry.dispose();
+        }
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(material => {
+              if (material && typeof material.dispose === 'function') {
+                material.dispose();
+              }
+            });
+          } else if (typeof object.material.dispose === 'function') {
+            object.material.dispose();
+          }
+        }
+      } else if (object instanceof THREE.Group) {
+        // Handle GLB models (Groups) - dispose of all children
+        object.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            if (child.geometry && typeof child.geometry.dispose === 'function') {
+              child.geometry.dispose();
+            }
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach(material => {
+                  if (material && typeof material.dispose === 'function') {
+                    material.dispose();
+                  }
+                });
+              } else if (typeof child.material.dispose === 'function') {
+                child.material.dispose();
+              }
+            }
+          }
+        });
       }
     });
     meshesRef.current.clear();
@@ -2433,7 +2518,7 @@ function ThreeScene({
         // Safely replace the mesh
         sceneRef.current.remove(currentMesh);
         sceneRef.current.add(model);
-        meshesRef.current.set(moduleId, model as any);
+        meshesRef.current.set(moduleId, model);
         
         console.log(`✅ Successfully upgraded ${moduleType} to GLTF model`);
         
@@ -2445,9 +2530,6 @@ function ThreeScene({
 
     // Add new meshes immediately (synchronous) then upgrade to GLTF in background
     objects.forEach((obj) => {
-      const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
-      if (!moduleConfig) return;
-
       // CRITICAL FIX: Check if object already exists to prevent duplication
       if (meshesRef.current.has(obj.id)) {
         console.log(`⚠️ Object ${obj.id} already exists, skipping creation`);
@@ -2464,22 +2546,100 @@ function ThreeScene({
       const isSelected = selectedId === obj.id;
       const complianceStatus = complianceAnalysis.moduleStatus[obj.id];
       
-      // Create immediate fallback mesh (always works, no race conditions)
-      const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
-      const material = createModuleMaterial(moduleConfig, isSelected, complianceStatus);
+      // Handle GLB models
+      if (obj.glbPath) {
+        console.log(`🎯 Loading GLB model: ${obj.glbPath} for object ${obj.id}`);
+        
+        const loader = new GLTFLoader();
+        loader.load(
+          obj.glbPath,
+          (gltf) => {
+            const model = gltf.scene;
+            
+            // Set up the model
+            model.position.set(...obj.position);
+            model.rotation.set(...(obj.rotation || [0, 0, 0]));
+            model.scale.set(...(obj.scale || [1, 1, 1]));
+            model.userData = { id: obj.id, type: obj.type, isGLBModel: true };
+            
+            // Enable shadows for all meshes in the model and set parent reference
+            model.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                
+                // Set userData to reference parent GLB model
+                child.userData = { 
+                  parentId: obj.id, 
+                  parentType: obj.type,
+                  isGLBChild: true 
+                };
+                
+                // Add selection highlight if selected
+                if (isSelected && child.material) {
+                  if (typeof child.material.clone === 'function') {
+                    child.material = child.material.clone();
+                    if (child.material.emissive) {
+                      child.material.emissive = new THREE.Color(0x404040);
+                    }
+                  }
+                }
+              }
+            });
+            
+            sceneRef.current!.add(model);
+            meshesRef.current.set(obj.id, model); // Store the GLB model group
+            
+            console.log(`✅ Loaded GLB model ${obj.id} at position [${obj.position.join(', ')}]`);
+          },
+          (progress) => {
+            console.log(`📈 Loading GLB ${obj.id}: ${(progress.loaded / progress.total * 100)}%`);
+          },
+          (error) => {
+            console.error(`❌ Failed to load GLB model ${obj.glbPath}:`, error);
+            
+            // Fallback to basic geometry for GLB failures
+            const geometry = new THREE.BoxGeometry(obj.size.w_m, obj.size.h_m, obj.size.l_m);
+            const material = new THREE.MeshLambertMaterial({ 
+              color: 0x888888,
+              transparent: true,
+              opacity: 0.8
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(...obj.position);
+            mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
+            mesh.scale.set(...(obj.scale || [1, 1, 1]));
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = { id: obj.id, type: obj.type, isGLBFallback: true };
+            
+            sceneRef.current!.add(mesh);
+            meshesRef.current.set(obj.id, mesh);
+          }
+        );
+      } else {
+        // Handle regular NASA modules
+        const moduleConfig = MODULE_TYPES_3D[obj.type as keyof typeof MODULE_TYPES_3D];
+        if (!moduleConfig) return;
+        
+        // Create immediate fallback mesh (always works, no race conditions)
+        const geometry = createModuleGeometry(moduleConfig.geometry, obj.size);
+        const material = createModuleMaterial(moduleConfig, isSelected, complianceStatus);
 
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(...obj.position);
-      mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
-      mesh.scale.set(...(obj.scale || [1, 1, 1]));
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData = { id: obj.id, type: obj.type };
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(...obj.position);
+        mesh.rotation.set(...(obj.rotation || [0, 0, 0]));
+        mesh.scale.set(...(obj.scale || [1, 1, 1]));
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData = { id: obj.id, type: obj.type };
 
-      sceneRef.current!.add(mesh);
-      meshesRef.current.set(obj.id, mesh);
-      
-      console.log(`✅ Created object ${obj.id} at position [${obj.position.join(', ')}]`);
+        sceneRef.current!.add(mesh);
+        meshesRef.current.set(obj.id, mesh);
+        
+        console.log(`✅ Created NASA module ${obj.id} at position [${obj.position.join(', ')}]`);
+      }
       
       // Re-enabling compliance indicators to test if they cause the issue
       if (complianceStatus !== 'compliant') {
@@ -2533,6 +2693,45 @@ function ThreeScene({
     });
     
   }, [objects, selectedId, isInitialized]);
+
+  // Update selection highlighting when selectedId changes
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    meshesRef.current.forEach((object, id) => {
+      const isSelected = id === selectedId;
+      
+      if (object instanceof THREE.Mesh) {
+        // Handle regular meshes
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(material => {
+              if (material.emissive) {
+                material.emissive.setHex(isSelected ? 0x404040 : 0x000000);
+              }
+            });
+          } else if (object.material.emissive) {
+            object.material.emissive.setHex(isSelected ? 0x404040 : 0x000000);
+          }
+        }
+      } else if (object instanceof THREE.Group && object.userData.isGLBModel) {
+        // Handle GLB models
+        object.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(material => {
+                if (material.emissive) {
+                  material.emissive.setHex(isSelected ? 0x404040 : 0x000000);
+                }
+              });
+            } else if (child.material.emissive) {
+              child.material.emissive.setHex(isSelected ? 0x404040 : 0x000000);
+            }
+          }
+        });
+      }
+    });
+  }, [selectedId, isInitialized]);
 
   return (
     <div ref={mountRef} className="w-full h-full bg-background">
@@ -2621,6 +2820,7 @@ export default function NASAHabitatBuilder3D() {
   const [showModuleInspector, setShowModuleInspector] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCustomCAD, setShowCustomCAD] = useState(true);
+  const [showGLBModels, setShowGLBModels] = useState(true);
   const [showNasaAssistant, setShowNasaAssistant] = useState(true);
   const [showValidation, setShowValidation] = useState(true);
   const [showCorridors, setShowCorridors] = useState(true);
@@ -2704,6 +2904,53 @@ export default function NASAHabitatBuilder3D() {
   useEffect(() => {
     saveToStorage('nasa-habitat-cad-shapes', customCADShapes);
   }, [customCADShapes]);
+
+  // Listen for CAD exports from the CAD application
+  useEffect(() => {
+    const handleCADExport = (event: MessageEvent) => {
+      if (event.data.type === 'CAD_EXPORT') {
+        const { name, objects: cadObjects, dimensions } = event.data.payload;
+        
+        // Add the exported CAD objects as a custom module to the design area
+        const id = generateId('CUSTOM_CAD');
+        const newObject: HabitatObject = {
+          id,
+          type: 'CUSTOM_CAD',
+          position: [0, 1, 0], // Default position
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          size: dimensions || { w_m: 2, l_m: 2, h_m: 2 },
+          name: name || 'Exported CAD Model'
+        };
+        
+        setObjects(prev => [...prev, newObject]);
+        setSelectedId(id);
+        
+        console.log(`✅ Imported CAD model: ${name} with ${cadObjects?.length || 0} objects`);
+      }
+    };
+
+    const handleCADExportEvent = () => {
+      try {
+        const exportDataStr = localStorage.getItem('cad_export');
+        if (exportDataStr) {
+          const exportData = JSON.parse(exportDataStr);
+          handleCADExport({ data: exportData } as MessageEvent);
+          localStorage.removeItem('cad_export'); // Clean up
+        }
+      } catch (error) {
+        console.error('Failed to handle CAD export from localStorage:', error);
+      }
+    };
+
+    window.addEventListener('message', handleCADExport);
+    window.addEventListener('cad_export', handleCADExportEvent);
+    
+    return () => {
+      window.removeEventListener('message', handleCADExport);
+      window.removeEventListener('cad_export', handleCADExportEvent);
+    };
+  }, []);
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -3057,8 +3304,12 @@ export default function NASAHabitatBuilder3D() {
   // Handle drop on 3D canvas
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    const type = e.dataTransfer.getData("module") as FunctionalType;
-    if (!type) return;
+    
+    // Check if it's a GLB model drop
+    const glbModelId = e.dataTransfer.getData("glbModel");
+    const moduleType = e.dataTransfer.getData("module") as FunctionalType;
+    
+    if (!glbModelId && !moduleType) return;
 
     const intersectionPoint = calculateDropPosition(e.clientX, e.clientY);
     if (!intersectionPoint) {
@@ -3066,31 +3317,59 @@ export default function NASAHabitatBuilder3D() {
       return;
     }
 
-    const id = generateId(type);
-    const moduleConfig = MODULE_TYPES_3D[type as keyof typeof MODULE_TYPES_3D];
-    const modulePreset = MODULE_PRESETS.find(p => p.type === type);
-    
-    if (!moduleConfig || !modulePreset) return;
+    if (glbModelId) {
+      // Handle GLB model drop
+      const glbModel = AVAILABLE_GLB_MODELS.find(model => model.id === glbModelId);
+      if (!glbModel) return;
 
-    // Position the module at the intersection point, snapped to grid
-    const position: [number, number, number] = [
-      snap(intersectionPoint.x), 
-      moduleConfig.size.height/2, // Place on ground surface
-      snap(intersectionPoint.z)
-    ];
-    
-    const newObject: HabitatObject = { 
-      id, 
-      type, 
-      position, 
-      rotation: [0, 0, 0], 
-      scale: [1, 1, 1],
-      size: modulePreset.defaultSize
-    };
-    
-    console.log('Adding NASA module at:', position, 'from drop at:', { x: e.clientX, y: e.clientY });
-    setObjects((prev) => [...prev, newObject]);
-    setSelectedId(id);
+      const id = generateId('CUSTOM_CAD'); // Use CUSTOM_CAD type for GLB models
+      const position: [number, number, number] = [
+        snap(intersectionPoint.x), 
+        1, // Default height for GLB models
+        snap(intersectionPoint.z)
+      ];
+      
+      const newObject: HabitatObject = { 
+        id, 
+        type: 'CUSTOM_CAD',
+        position, 
+        rotation: [0, 0, 0], 
+        scale: [1, 1, 1],
+        size: { w_m: 2, l_m: 2, h_m: 2 }, // Default size, will be adjusted when model loads
+        glbPath: glbModel.path, // Store the GLB path for rendering
+        name: glbModel.name
+      };
+      
+      console.log('Adding GLB model at:', position, 'GLB:', glbModel.name);
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedId(id);
+    } else {
+      // Handle regular NASA module drop
+      const moduleConfig = MODULE_TYPES_3D[moduleType as keyof typeof MODULE_TYPES_3D];
+      const modulePreset = MODULE_PRESETS.find(p => p.type === moduleType);
+      
+      if (!moduleConfig || !modulePreset) return;
+
+      const id = generateId(moduleType);
+      const position: [number, number, number] = [
+        snap(intersectionPoint.x), 
+        moduleConfig.size.height/2, // Place on ground surface
+        snap(intersectionPoint.z)
+      ];
+      
+      const newObject: HabitatObject = { 
+        id, 
+        type: moduleType, 
+        position, 
+        rotation: [0, 0, 0], 
+        scale: [1, 1, 1],
+        size: modulePreset.defaultSize
+      };
+      
+      console.log('Adding NASA module at:', position, 'from drop at:', { x: e.clientX, y: e.clientY });
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedId(id);
+    }
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -3480,6 +3759,18 @@ export default function NASAHabitatBuilder3D() {
               <span className="font-medium">Analyses</span>
             </Button>
             
+            <Button 
+              onClick={() => setActiveTab('chat')} 
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                activeTab === 'chat' 
+                  ? 'bg-primary text-primary-foreground border-primary/50 shadow-lg' 
+                  : 'bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground'
+              } border`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="font-medium">AI Chat</span>
+            </Button>
+            
             <div className="w-px h-8 bg-border mx-2"></div>
             
             <Button 
@@ -3707,6 +3998,90 @@ export default function NASAHabitatBuilder3D() {
                 </div>
                 <div className="text-xs text-muted-foreground text-center mt-2">
                   🟢 Clean: Food/Sleep/Medical • 🟠 Dirty: Exercise/Hygiene/Waste • 🔵 Technical: Systems/Storage
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* GLB 3D Models */}
+          <div className="p-3 border-b border-border">
+            <h3 
+              className="font-semibold text-foreground mb-2 flex items-center gap-2 cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={() => setShowGLBModels(!showGLBModels)}
+            >
+              <div className="w-4 h-4 text-cyan-400 flex items-center justify-center">📦</div>
+              GLB 3D Models
+              {showGLBModels ? <Minus className="w-3 h-3 ml-auto" /> : <Plus className="w-3 h-3 ml-auto" />}
+            </h3>
+            {showGLBModels && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Drag and drop custom 3D models from GLB files
+                </p>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {AVAILABLE_GLB_MODELS.map((model) => (
+                    <div
+                      key={model.id}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("glbModel", model.id)}
+                      className="group flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-cyan-900/20 to-blue-900/20 hover:from-cyan-800/30 hover:to-blue-800/30 border border-cyan-500/30 rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 backdrop-blur-sm hover:shadow-lg hover:shadow-cyan-500/20"
+                      title={model.description}
+                    >
+                      <div className="text-2xl mb-1">{model.preview}</div>
+                      <div className="text-center min-w-0 w-full">
+                        <div className="font-medium text-foreground text-xs truncate">{model.name}</div>
+                        <div className="text-[10px] text-cyan-300">{model.category}</div>
+                        <div className="text-[9px] text-muted-foreground mt-1 line-clamp-2">
+                          {model.description}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-3 space-y-2">
+                  <Button 
+                    onClick={() => document.getElementById('glb-file-input')?.click()}
+                    className="w-full text-xs h-8 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 flex items-center gap-2"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Upload GLB Model
+                  </Button>
+                  
+                  <input
+                    id="glb-file-input"
+                    type="file"
+                    accept=".glb,.gltf"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = URL.createObjectURL(file);
+                        const id = generateId('CUSTOM_CAD');
+                        const newObject: HabitatObject = {
+                          id,
+                          type: 'CUSTOM_CAD',
+                          position: [0, 1, 0],
+                          rotation: [0, 0, 0],
+                          scale: [1, 1, 1],
+                          size: { w_m: 2, l_m: 2, h_m: 2 },
+                          glbPath: url,
+                          name: file.name.replace(/\.(glb|gltf)$/i, '')
+                        };
+                        setObjects(prev => [...prev, newObject]);
+                        setSelectedId(id);
+                        console.log(`✅ Uploaded GLB file: ${file.name}`);
+                      }
+                    }}
+                  />
+                </div>
+                
+                <div className="mt-3 p-2 bg-cyan-900/10 border border-cyan-500/20 rounded-md">
+                  <div className="text-xs text-cyan-300 font-medium mb-1">💡 Pro Tip</div>
+                  <div className="text-xs text-muted-foreground">
+                    GLB models maintain their original proportions and materials. Use the inspector to adjust size and position.
+                  </div>
                 </div>
               </div>
             )}
@@ -4067,28 +4442,53 @@ export default function NASAHabitatBuilder3D() {
               <div className="space-y-3">
                 <div className="p-3 bg-card/40 border border-border rounded-lg">
                   <div className="font-medium text-foreground capitalize flex items-center gap-2">
-                    <span className="text-lg">{MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D]?.icon}</span>
-                    {MODULE_PRESETS.find(p => p.type === selectedObject.type)?.label}
+                    {selectedObject.glbPath ? (
+                      <>
+                        <span className="text-lg">📦</span>
+                        {selectedObject.name || 'GLB Model'}
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg">{MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D]?.icon}</span>
+                        {MODULE_PRESETS.find(p => p.type === selectedObject.type)?.label}
+                      </>
+                    )}
                   </div>
                   {(() => {
-                    const config = MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D];
-                    const categoryColor = config?.nasaCategory === 'CLEAN' ? 'text-green-300' :
-                                        config?.nasaCategory === 'DIRTY' ? 'text-orange-300' : 'text-blue-300';
-                    return (
-                      <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                        <div className={`${categoryColor} font-medium`}>
-                          NASA {config?.nasaCategory} Area
-                        </div>
-                        <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
-                        <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
-                        <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
-                        {config?.minDimensions && (
-                          <div className="text-yellow-300">
-                            NASA Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
+                    if (selectedObject.glbPath) {
+                      return (
+                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                          <div className="text-cyan-300 font-medium">
+                            GLB 3D Model
                           </div>
-                        )}
-                      </div>
-                    );
+                          <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
+                          <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
+                          <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
+                          <div className="text-cyan-300">
+                            Custom 3D Model File
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      const config = MODULE_TYPES_3D[selectedObject.type as keyof typeof MODULE_TYPES_3D];
+                      const categoryColor = config?.nasaCategory === 'CLEAN' ? 'text-green-300' :
+                                          config?.nasaCategory === 'DIRTY' ? 'text-orange-300' : 'text-blue-300';
+                      return (
+                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                          <div className={`${categoryColor} font-medium`}>
+                            NASA {config?.nasaCategory} Area
+                          </div>
+                          <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
+                          <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
+                          <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
+                          {config?.minDimensions && (
+                            <div className="text-yellow-300">
+                              NASA Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
                   })()}
                 </div>
                 <button
@@ -4500,6 +4900,29 @@ export default function NASAHabitatBuilder3D() {
                   />
                 </div>
               )}
+            </div>
+          </div>
+        ) : activeTab === 'chat' ? (
+          <div className="flex-1 bg-gradient-to-br from-blue-950/20 via-transparent to-cyan-950/20 p-6">
+            <div className="max-w-6xl mx-auto h-full">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-blue-200 mb-2 flex items-center gap-3">
+                  <MessageCircle className="w-8 h-8 text-blue-400" />
+                  NASA Design Assistant
+                </h2>
+                <p className="text-gray-400">Get intelligent guidance and analysis for your habitat design</p>
+              </div>
+              
+              <div className="h-[calc(100%-120px)]">
+                <ChatInterface
+                  designContext={generateNASALayout()}
+                  onSuggestionApply={(suggestion) => {
+                    console.log('AI Suggestion:', suggestion);
+                    // Handle AI suggestions here - could auto-place modules, adjust settings, etc.
+                  }}
+                  className="h-full"
+                />
+              </div>
             </div>
           </div>
         ) : null}

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Layers, Grid3x3, Eye, Settings, Save, BarChart3 } from 'lucide-react';
+import { AlertCircle, Layers, Grid3x3, Eye, Settings, Save, BarChart3, MessageCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { Interactive3DPlacement } from './Interactive3DPlacement';
@@ -12,6 +12,7 @@ import { VisualizationDashboard } from '../analytics/VisualizationDashboard';
 import { QuickActionsToolbar } from '@/components/ui/QuickActionsToolbar';
 import { UserGuidanceSystem } from '@/components/ui/UserGuidanceSystem';
 import { SmartStatusSystem } from '@/components/ui/SmartStatusSystem';
+import { ChatInterface } from '@/components/ai/ChatInterface';
 import { MODULE_DETAILS } from './ModulePalette';
 
 // Enhanced module interface for the integrated system
@@ -48,13 +49,55 @@ export function EnhancedDesignInterface({
 }: EnhancedDesignInterfaceProps) {
   const [modules, setModules] = useState<EnhancedModule[]>(initialModules);
   const [selectedLevel, setSelectedLevel] = useState(0);
-  const [viewMode, setViewMode] = useState<'3d' | 'palette' | 'analytics' | 'both'>('both');
+  const [viewMode, setViewMode] = useState<'3d' | 'palette' | 'analytics' | 'chat' | 'both'>('both');
   const [showGrid, setShowGrid] = useState(true);
   const [measureMode, setMeasureMode] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [showStatusPanel, setShowStatusPanel] = useState(true);
   
   const maxLevels = Math.max(1, Math.floor(bounds.height / 2.4));
+  
+  // Generate NASA layout data for AI chat context
+  const generateChatContext = useCallback(() => {
+    return {
+      scenario: {
+        crew_size: designStats.totalCrewCapacity || 4,
+        mission_duration_days: 365,
+        destination: "MARS_SURFACE",
+        fairing: {
+          name: "Falcon 9",
+          inner_diameter_m: 5.2,
+          inner_height_m: 13.1,
+          shape: "CONE"
+        }
+      },
+      habitat: {
+        shape: "CYLINDER",
+        levels: designStats.levelsUsed,
+        dimensions: {
+          diameter_m: bounds.width,
+          height_m: bounds.height
+        },
+        pressurized_volume_m3: bounds.width * bounds.depth * bounds.height,
+        net_habitable_volume_m3: designStats.totalVolume
+      },
+      modules: modules.map(module => ({
+        id: module.id,
+        type: module.type,
+        position: [module.position[0], module.position[2]], // Convert 3D to 2D
+        size: {
+          w_m: module.size.w_m,
+          l_m: module.size.l_m,
+          h_m: module.size.h_m,
+          volume_m3: module.size.w_m * module.size.l_m * module.size.h_m
+        },
+        rotation_degrees: module.rotation * (180 / Math.PI), // Convert radians to degrees
+        level: module.level,
+        crew_capacity: module.crew_capacity
+      })),
+      version: "1.0.0"
+    };
+  }, [modules, bounds, designStats]);
   
   // Generate unique module ID
   const generateModuleId = useCallback(() => {
@@ -189,8 +232,8 @@ export function EnhancedDesignInterface({
           
           <div className="flex items-center gap-2">
             {/* View Mode Toggle */}
-            <Tabs value={viewMode} onValueChange={(v: string) => setViewMode(v as 'palette' | '3d' | 'analytics' | 'both')}>
-              <TabsList className="grid w-full grid-cols-4" data-tutorial="level-selector">
+            <Tabs value={viewMode} onValueChange={(v: string) => setViewMode(v as 'palette' | '3d' | 'analytics' | 'chat' | 'both')}>
+              <TabsList className="grid w-full grid-cols-5" data-tutorial="level-selector">
                 <TabsTrigger value="palette" className="text-xs">
                   <Grid3x3 className="w-3 h-3 mr-1" />
                   Palette
@@ -206,6 +249,10 @@ export function EnhancedDesignInterface({
                 <TabsTrigger value="analytics" className="text-xs" data-tutorial="analytics-tab">
                   <BarChart3 className="w-3 h-3 mr-1" />
                   Analytics
+                </TabsTrigger>
+                <TabsTrigger value="chat" className="text-xs" data-tutorial="ai-chat">
+                  <MessageCircle className="w-3 h-3 mr-1" />
+                  AI Chat
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -233,7 +280,7 @@ export function EnhancedDesignInterface({
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Quick Actions Toolbar */}
-        {showQuickActions && viewMode !== 'analytics' && (
+        {showQuickActions && viewMode !== 'analytics' && viewMode !== 'chat' && (
           <div className="w-64 border-r bg-muted/10">
             <QuickActionsToolbar
               onToggleGrid={() => setShowGrid(!showGrid)}
@@ -308,6 +355,24 @@ export function EnhancedDesignInterface({
             />
           </div>
         )}
+        
+        {/* AI Chat Interface (conditional) */}
+        {viewMode === 'chat' && (
+          <div className="flex-1 p-4" data-tutorial="ai-chat">
+            <ChatInterface
+              designContext={generateChatContext()}
+              onSuggestionApply={(suggestion) => {
+                // Handle AI suggestions - could auto-place modules, adjust settings, etc.
+                console.log('AI Suggestion:', suggestion);
+                // Example: Auto-implement suggestions
+                // if (suggestion.type === 'add_module') {
+                //   handleModuleAdd(suggestion.moduleType, suggestion.level);
+                // }
+              }}
+              className="h-full"
+            />
+          </div>
+        )}
       </div>
       
       {/* Status bar */}
@@ -321,8 +386,15 @@ export function EnhancedDesignInterface({
               Active Level: {selectedLevel} ({(selectedLevel * 2.4).toFixed(1)}m)
             </span>
           </div>
-          <div>
-            Phase 2 Complete: Enhanced UI/UX with Smart Guidance • Excellent User Experience
+          <div className="flex items-center gap-2">
+            {viewMode === 'chat' && (
+              <span className="flex items-center gap-1">
+                <MessageCircle className="w-3 h-3 text-blue-500" />
+                AI Assistant Active
+                <span className="mx-2">•</span>
+              </span>
+            )}
+            <span>Phase 2 Complete: Enhanced UI/UX with Smart Guidance • Excellent User Experience</span>
           </div>
         </div>
       </div>
