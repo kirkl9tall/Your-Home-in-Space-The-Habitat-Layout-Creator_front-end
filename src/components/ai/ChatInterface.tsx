@@ -51,9 +51,17 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
+    const scrollToBottom = () => {
+      if (scrollAreaRef.current) {
+        const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollElement) {
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+        }
+      }
+    };
+    
+    // Use setTimeout to ensure DOM has updated
+    setTimeout(scrollToBottom, 100);
   }, [messages]);
 
   const copyToClipboard = async (text: string, messageId: string) => {
@@ -228,16 +236,18 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
-          <div className="space-y-4 pb-4">
+        <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
+          <div className="p-4 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : ''}`}
+                className={`flex gap-3 items-start w-full ${
+                  message.type === 'user' ? 'flex-row-reverse' : ''
+                }`}
               >
-                <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+                <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-1 ${
                   message.type === 'user' 
                     ? 'bg-blue-500 text-white' 
                     : 'bg-muted text-muted-foreground'
@@ -245,18 +255,22 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
                   {getMessageIcon(message.type, message.loading)}
                 </div>
                 
-                <div className={`flex-1 max-w-[85%] ${message.type === 'user' ? 'text-right' : ''}`}>
-                  <div className={`inline-block p-3 rounded-lg text-sm ${
+                <div className={`flex-1 min-w-0 max-w-[calc(100%-3rem)] ${
+                  message.type === 'user' ? 'flex flex-col items-end' : ''
+                }`}>
+                  <div className={`p-3 rounded-lg text-sm break-words overflow-wrap-anywhere ${
                     message.type === 'user'
-                      ? 'bg-blue-500 text-white rounded-br-sm'
-                      : 'bg-muted text-foreground rounded-bl-sm'
+                      ? 'bg-blue-500 text-white rounded-br-sm max-w-fit'
+                      : 'bg-muted text-foreground rounded-bl-sm w-full'
                   }`}>
                     {message.loading ? (
                       <div className="flex items-center gap-2">
                         <span>Analyzing your design...</span>
                       </div>
                     ) : (
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      <div className="whitespace-pre-wrap word-break break-words">
+                        {message.content}
+                      </div>
                     )}
                   </div>
                   
@@ -286,15 +300,15 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
 
         {/* Quick Actions */}
         {messages.length <= 1 && (
-          <div className="px-4 py-2 border-t">
+          <div className="flex-shrink-0 px-4 py-3 border-t bg-muted/20">
             <div className="text-xs text-muted-foreground mb-2">Quick actions:</div>
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-2">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
                   size="sm"
                   variant="ghost"
-                  className="text-xs h-auto py-2 px-2 text-left justify-start whitespace-normal"
+                  className="text-xs h-auto py-2 px-2 text-left justify-start whitespace-normal hover:bg-muted/50"
                   onClick={() => setInputMessage(action.message)}
                   disabled={isLoading}
                 >
@@ -306,7 +320,7 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
         )}
 
         {/* Input Area */}
-        <div className="p-4 border-t">
+        <div className="flex-shrink-0 p-4 border-t bg-background">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -315,13 +329,13 @@ export function ChatInterface({ designContext, onSuggestionApply, className }: C
               onKeyPress={handleKeyPress}
               placeholder="Ask about your habitat design..."
               disabled={isLoading}
-              className="text-sm"
+              className="text-sm flex-1"
             />
             <Button
               size="sm"
               onClick={sendMessage}
               disabled={isLoading || !inputMessage.trim()}
-              className="flex-shrink-0"
+              className="flex-shrink-0 px-3"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
