@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft, Sparkles, Home, Rocket, Moon, MessageCircle } from 'lucide-react';
+import { Loader2, CheckCircle, Lightbulb, Settings, Trash2, Camera, Eye, Plus, Minus, Save, Folder, PanelLeft, PanelLeftClose, Network, ArrowLeft, Sparkles, Home, Rocket, Moon, MessageCircle, X } from 'lucide-react';
 
 // Import your existing NASA schema and API
 import { FAIRINGS, MODULE_PRESETS, FunctionalType } from '@/lib/DEFAULTS';
@@ -2919,20 +2919,21 @@ export default function NASAHabitatBuilder3D() {
   );
   const [loading, setLoading] = useState({ validation: false });
   const [showHelp, setShowHelp] = useState(false);
+  const [showMainMenu, setShowMainMenu] = useState(false);
   const [nextId, setNextId] = useState(1);
   const [isInitialized, setIsInitialized] = useState(false);
   
   // State for collapsible sections
-  const [showNasaFunctional, setShowNasaFunctional] = useState(true);
-  const [showNasaMission, setShowNasaMission] = useState(true);
-  const [showSampleDesigns, setShowSampleDesigns] = useState(true);
-  const [showModuleInspector, setShowModuleInspector] = useState(true);
+  const [showNasaFunctional, setShowNasaFunctional] = useState(false);
+  const [showNasaMission, setShowNasaMission] = useState(false);
+  const [showSampleDesigns, setShowSampleDesigns] = useState(false);
+  const [showModuleInspector, setShowModuleInspector] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [showCustomCAD, setShowCustomCAD] = useState(true);
-  const [showGLBModels, setShowGLBModels] = useState(true);
-  const [showNasaAssistant, setShowNasaAssistant] = useState(true);
-  const [showValidation, setShowValidation] = useState(true);
-  const [showCorridors, setShowCorridors] = useState(true);
+  const [showCustomCAD, setShowCustomCAD] = useState(false);
+  const [showGLBModels, setShowGLBModels] = useState(false);
+  const [showNasaAssistant, setShowNasaAssistant] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
+  const [showCorridors, setShowCorridors] = useState(false);
   
   // New state for save/load functionality
   const [activeTab, setActiveTab] = useState<'design' | 'collections' | 'cad' | 'analyses'>(() => 
@@ -3815,7 +3816,8 @@ export default function NASAHabitatBuilder3D() {
   return (
     <div className="w-full h-screen bg-background text-foreground space-gradient flex flex-col">
       {/* Header */}
-      <header className="nav-container shadow-2xl">
+      {showMainMenu && (
+        <header className="nav-container shadow-2xl">
         <div className="flex items-center justify-between p-4">
           {/* Logo and Title */}
           <div className="flex items-center gap-3">
@@ -3911,6 +3913,14 @@ export default function NASAHabitatBuilder3D() {
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setShowMainMenu(false)} 
+              className="btn-secondary px-3 py-2 text-red-500 hover:text-red-400 border-red-500/30 hover:border-red-400/50" 
+              title="Hide Main Menu"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Hide Menu
+            </Button>
             <Button onClick={createNewDesign} className="btn-space px-3 py-2">
               <Plus className="w-4 h-4 mr-1" />
               New
@@ -3922,6 +3932,7 @@ export default function NASAHabitatBuilder3D() {
           </div>
         </div>
       </header>
+      )}
 
       <div className="flex-1 flex h-[calc(100vh-80px)]">
         {activeTab === 'design' ? (
@@ -4890,6 +4901,20 @@ export default function NASAHabitatBuilder3D() {
                   )}
                 </div>
               </Button>
+              
+              {/* Main Menu Toggle Button - Only show when menu is hidden */}
+              {!showMainMenu && (
+                <Button
+                  onClick={() => setShowMainMenu(true)}
+                  className="w-12 h-12 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-xl border-2 border-green-400/50 glow-green transition-all duration-300 hover:scale-105"
+                  title="Show Main Menu"
+                >
+                  <div className="flex flex-col items-center">
+                    <Settings className="w-4 h-4" />
+                    <div className="text-[8px] leading-none">Menu</div>
+                  </div>
+                </Button>
+              )}
             </div>
           </div>
 
