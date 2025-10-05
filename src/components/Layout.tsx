@@ -19,7 +19,7 @@ export function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link to="/design" className="flex items-center gap-3">
+              <Link to="/design" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
                 <img 
                   src="/logo-nhd.png" 
                   alt="NHD Logo" 

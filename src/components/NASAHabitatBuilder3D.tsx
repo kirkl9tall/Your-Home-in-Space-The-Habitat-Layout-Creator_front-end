@@ -4846,21 +4846,21 @@ export default function NASAHabitatBuilder3D() {
             {/* Chat Popup */}
             {showChatPopup && (
               <div 
-                className="w-[420px] h-[550px] glass-morphism rounded-xl shadow-2xl border-2 border-blue-500/50 glow-blue backdrop-blur-lg bg-background/95 pointer-events-auto"
+                className="w-[420px] h-[550px] glass-morphism rounded-xl shadow-2xl border-2 border-blue-500/50 glow-blue backdrop-blur-lg bg-background/95 pointer-events-auto overflow-hidden"
                 onKeyDown={(e) => e.stopPropagation()}
                 onKeyUp={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onMouseUp={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="h-full flex flex-col">
+                <div className="h-full flex flex-col overflow-hidden">
                   <ChatInterface
                     designContext={generateNASALayout()}
                     onSuggestionApply={(suggestion) => {
                       console.log('AI Suggestion:', suggestion);
                       // Handle AI suggestions here
                     }}
-                    className="h-full flex-1"
+                    className="h-full flex-1 overflow-hidden flex flex-col"
                   />
                 </div>
               </div>
@@ -5089,11 +5089,22 @@ export default function NASAHabitatBuilder3D() {
           <div className="flex-1 bg-gradient-to-br from-blue-950/20 via-transparent to-cyan-950/20 p-6">
             <div className="max-w-6xl mx-auto h-full">
               <div className="mb-6">
-                <h2 className="text-3xl font-bold text-blue-200 mb-2 flex items-center gap-3">
-                  <MessageCircle className="w-8 h-8 text-blue-400" />
-                  NASA Design Assistant
-                </h2>
-                <p className="text-gray-400">Get intelligent guidance and analysis for your habitat design</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold text-blue-200 mb-2 flex items-center gap-3">
+                      <MessageCircle className="w-8 h-8 text-blue-400" />
+                      NASA Design Assistant
+                    </h2>
+                    <p className="text-gray-400">Get intelligent guidance and analysis for your habitat design</p>
+                  </div>
+                  <Button
+                    onClick={() => setActiveTab('design')}
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg transition-all duration-200 hover:scale-105"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                    Back to Design
+                  </Button>
+                </div>
               </div>
               
               <div className="h-[calc(100%-120px)]">
