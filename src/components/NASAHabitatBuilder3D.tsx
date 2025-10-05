@@ -4845,7 +4845,14 @@ export default function NASAHabitatBuilder3D() {
           <div className="absolute bottom-20 right-6 flex flex-col items-end gap-3">
             {/* Chat Popup */}
             {showChatPopup && (
-              <div className="w-[420px] h-[550px] glass-morphism rounded-xl shadow-2xl border-2 border-blue-500/50 glow-blue backdrop-blur-lg bg-background/95">
+              <div 
+                className="w-[420px] h-[550px] glass-morphism rounded-xl shadow-2xl border-2 border-blue-500/50 glow-blue backdrop-blur-lg bg-background/95 pointer-events-auto"
+                onKeyDown={(e) => e.stopPropagation()}
+                onKeyUp={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="h-full flex flex-col">
                   <ChatInterface
                     designContext={generateNASALayout()}
