@@ -1,0 +1,153 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "ChatGPT GLTF Generator"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "name": "CREW_SLEEP",
+      "mesh": 0,
+      "scale": [
+        2.2,
+        2.1,
+        1.2
+      ],
+      "extras": {
+        "label": "Crew Quarters / Sleep Pods",
+        "category": "CREW",
+        "dims_m": [
+          2.2,
+          2.1,
+          1.2
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [
+            "MAINTENANCE",
+            "AIRLOCK",
+            "TRASH_MGMT"
+          ],
+          "prefer": [
+            "HYGIENE",
+            "COMMON_AREA"
+          ]
+        },
+        "nasa_compliance_note": "Procedural fallback geometry; replace with CAD-accurate GLB when available."
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CREW_SLEEP_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.23137254901960785,
+          0.5098039215686274,
+          0.9647058823529412,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "CREW_SLEEP_mat"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 840,
+      "uri": "CREW_SLEEP.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 288,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 576,
+      "byteLength": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ]
+}

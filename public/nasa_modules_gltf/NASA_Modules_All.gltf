@@ -1,0 +1,1119 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "ChatGPT GLTF Generator"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "name": "CREW_SLEEP",
+      "mesh": 0,
+      "translation": [
+        -6.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.2,
+        2.1,
+        1.2
+      ],
+      "extras": {
+        "label": "Crew Quarters / Sleep Pods",
+        "category": "CREW",
+        "dims_m": [
+          2.2,
+          2.1,
+          1.2
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [
+            "MAINTENANCE",
+            "AIRLOCK",
+            "TRASH_MGMT"
+          ],
+          "prefer": [
+            "HYGIENE",
+            "COMMON_AREA"
+          ]
+        }
+      }
+    },
+    {
+      "name": "HYGIENE",
+      "mesh": 1,
+      "translation": [
+        -2.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.6,
+        2.2,
+        1.3
+      ],
+      "extras": {
+        "label": "Hygiene Station / Bathroom",
+        "category": "CREW",
+        "dims_m": [
+          1.6,
+          2.2,
+          1.3
+        ],
+        "volume_efficiency": 0.85,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "FOOD_PREP",
+            "GLOVEBOX"
+          ],
+          "prefer": [
+            "CREW_SLEEP"
+          ]
+        }
+      }
+    },
+    {
+      "name": "WASTE",
+      "mesh": 2,
+      "translation": [
+        2.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.2,
+        2.2,
+        1.0
+      ],
+      "extras": {
+        "label": "Waste Management System",
+        "category": "UTILITY",
+        "dims_m": [
+          1.2,
+          2.2,
+          1.0
+        ],
+        "volume_efficiency": 0.8,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "MEDICAL",
+            "FOOD_PREP",
+            "COMMON_AREA"
+          ],
+          "prefer": [
+            "TRASH_MGMT"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ECLSS",
+      "mesh": 3,
+      "translation": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.05,
+        2.0,
+        0.85
+      ],
+      "extras": {
+        "label": "ECLSS Life Support Rack",
+        "category": "UTILITY",
+        "dims_m": [
+          1.05,
+          2.0,
+          0.85
+        ],
+        "volume_efficiency": 0.95,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "MEDICAL"
+          ],
+          "prefer": [
+            "WORKSTATION"
+          ]
+        }
+      }
+    },
+    {
+      "name": "AIRLOCK",
+      "mesh": 4,
+      "translation": [
+        -6.0,
+        0.0,
+        4.0
+      ],
+      "scale": [
+        2.5,
+        2.5,
+        2.5
+      ],
+      "extras": {
+        "label": "Airlock Chamber",
+        "category": "UTILITY",
+        "dims_m": [
+          2.5,
+          2.5,
+          2.5
+        ],
+        "volume_efficiency": 0.7,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "FOOD_PREP",
+            "COMMON_AREA"
+          ],
+          "prefer": [
+            "MAINTENANCE"
+          ]
+        }
+      }
+    },
+    {
+      "name": "WORKSTATION",
+      "mesh": 5,
+      "translation": [
+        -2.0,
+        0.0,
+        4.0
+      ],
+      "scale": [
+        1.6,
+        2.1,
+        1.0
+      ],
+      "extras": {
+        "label": "Multi-purpose Workstation",
+        "category": "WORK",
+        "dims_m": [
+          1.6,
+          2.1,
+          1.0
+        ],
+        "volume_efficiency": 0.85,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP"
+          ],
+          "prefer": [
+            "MAINTENANCE",
+            "GLOVEBOX"
+          ]
+        }
+      }
+    },
+    {
+      "name": "MEDICAL",
+      "mesh": 6,
+      "translation": [
+        2.0,
+        0.0,
+        4.0
+      ],
+      "scale": [
+        2.8,
+        2.2,
+        2.0
+      ],
+      "extras": {
+        "label": "Medical Bay / Health Facility",
+        "category": "MEDICAL",
+        "dims_m": [
+          2.8,
+          2.2,
+          2.0
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [
+            "WASTE",
+            "TRASH_MGMT",
+            "AIRLOCK"
+          ],
+          "prefer": [
+            "COMMON_AREA"
+          ]
+        }
+      }
+    },
+    {
+      "name": "MAINTENANCE",
+      "mesh": 7,
+      "translation": [
+        6.0,
+        0.0,
+        4.0
+      ],
+      "scale": [
+        2.6,
+        2.3,
+        2.0
+      ],
+      "extras": {
+        "label": "Maintenance Bay / Workshop",
+        "category": "WORK",
+        "dims_m": [
+          2.6,
+          2.3,
+          2.0
+        ],
+        "volume_efficiency": 0.8,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "MEDICAL"
+          ],
+          "prefer": [
+            "AIRLOCK",
+            "WORKSTATION"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GLOVEBOX",
+      "mesh": 8,
+      "translation": [
+        -6.0,
+        0.0,
+        8.0
+      ],
+      "scale": [
+        1.8,
+        2.0,
+        1.0
+      ],
+      "extras": {
+        "label": "Science Glovebox / Laboratory",
+        "category": "SCIENCE",
+        "dims_m": [
+          1.8,
+          2.0,
+          1.0
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "HYGIENE",
+            "FOOD_PREP"
+          ],
+          "prefer": [
+            "WORKSTATION"
+          ]
+        }
+      }
+    },
+    {
+      "name": "FOOD_PREP",
+      "mesh": 9,
+      "translation": [
+        -2.0,
+        0.0,
+        8.0
+      ],
+      "scale": [
+        2.0,
+        2.1,
+        1.4
+      ],
+      "extras": {
+        "label": "Galley / Kitchen Module",
+        "category": "FOOD",
+        "dims_m": [
+          2.0,
+          2.1,
+          1.4
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "HYGIENE",
+            "WASTE",
+            "TRASH_MGMT"
+          ],
+          "prefer": [
+            "COMMON_AREA"
+          ]
+        }
+      }
+    },
+    {
+      "name": "COMMON_AREA",
+      "mesh": 10,
+      "translation": [
+        2.0,
+        0.0,
+        8.0
+      ],
+      "scale": [
+        3.2,
+        2.1,
+        2.2
+      ],
+      "extras": {
+        "label": "Common / Social Area",
+        "category": "SOCIAL",
+        "dims_m": [
+          3.2,
+          2.1,
+          2.2
+        ],
+        "volume_efficiency": 0.95,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [
+            "WASTE",
+            "MAINTENANCE",
+            "AIRLOCK"
+          ],
+          "prefer": [
+            "FOOD_PREP",
+            "CREW_SLEEP"
+          ]
+        }
+      }
+    },
+    {
+      "name": "RECREATION",
+      "mesh": 11,
+      "translation": [
+        6.0,
+        0.0,
+        8.0
+      ],
+      "scale": [
+        2.4,
+        2.1,
+        1.8
+      ],
+      "extras": {
+        "label": "Recreation / Entertainment",
+        "category": "SOCIAL",
+        "dims_m": [
+          2.4,
+          2.1,
+          1.8
+        ],
+        "volume_efficiency": 0.9,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [
+            "WASTE",
+            "MAINTENANCE"
+          ],
+          "prefer": [
+            "COMMON_AREA"
+          ]
+        }
+      }
+    },
+    {
+      "name": "EXERCISE",
+      "mesh": 12,
+      "translation": [
+        -6.0,
+        0.0,
+        12.0
+      ],
+      "scale": [
+        3.0,
+        2.4,
+        2.4
+      ],
+      "extras": {
+        "label": "Exercise / Fitness (ARED-style)",
+        "category": "CREW",
+        "dims_m": [
+          3.0,
+          2.4,
+          2.4
+        ],
+        "volume_efficiency": 0.8,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "MEDICAL"
+          ],
+          "prefer": [
+            "COMMON_AREA"
+          ]
+        }
+      }
+    },
+    {
+      "name": "STOWAGE",
+      "mesh": 13,
+      "translation": [
+        -2.0,
+        0.0,
+        12.0
+      ],
+      "scale": [
+        1.2,
+        2.2,
+        1.2
+      ],
+      "extras": {
+        "label": "Storage Rack / Cargo Bay",
+        "category": "UTILITY",
+        "dims_m": [
+          1.2,
+          2.2,
+          1.2
+        ],
+        "volume_efficiency": 0.95,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [],
+          "prefer": [
+            "WORKSTATION",
+            "MAINTENANCE"
+          ]
+        }
+      }
+    },
+    {
+      "name": "TRASH_MGMT",
+      "mesh": 14,
+      "translation": [
+        2.0,
+        0.0,
+        12.0
+      ],
+      "scale": [
+        1.4,
+        2.1,
+        1.2
+      ],
+      "extras": {
+        "label": "Trash Compactor / Management",
+        "category": "UTILITY",
+        "dims_m": [
+          1.4,
+          2.1,
+          1.2
+        ],
+        "volume_efficiency": 0.75,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "FOOD_PREP",
+            "COMMON_AREA"
+          ],
+          "prefer": [
+            "WASTE"
+          ]
+        }
+      }
+    },
+    {
+      "name": "CUSTOM_CAD",
+      "mesh": 15,
+      "translation": [
+        6.0,
+        0.0,
+        12.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "extras": {
+        "label": "Custom CAD-designed Module",
+        "category": "WORK",
+        "dims_m": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "volume_efficiency": 0.85,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [],
+          "prefer": []
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CREW_SLEEP_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "HYGIENE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "WASTE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "ECLSS_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 3
+        }
+      ]
+    },
+    {
+      "name": "AIRLOCK_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 4
+        }
+      ]
+    },
+    {
+      "name": "WORKSTATION_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 5
+        }
+      ]
+    },
+    {
+      "name": "MEDICAL_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 6
+        }
+      ]
+    },
+    {
+      "name": "MAINTENANCE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 7
+        }
+      ]
+    },
+    {
+      "name": "GLOVEBOX_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 8
+        }
+      ]
+    },
+    {
+      "name": "FOOD_PREP_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 9
+        }
+      ]
+    },
+    {
+      "name": "COMMON_AREA_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 10
+        }
+      ]
+    },
+    {
+      "name": "RECREATION_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 11
+        }
+      ]
+    },
+    {
+      "name": "EXERCISE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 12
+        }
+      ]
+    },
+    {
+      "name": "STOWAGE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 13
+        }
+      ]
+    },
+    {
+      "name": "TRASH_MGMT_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 14
+        }
+      ]
+    },
+    {
+      "name": "CUSTOM_CAD_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 15
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.23137254901960785,
+          0.5098039215686274,
+          0.9647058823529412,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "CREW_SLEEP_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.23137254901960785,
+          0.5098039215686274,
+          0.9647058823529412,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "HYGIENE_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "WASTE_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "ECLSS_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "AIRLOCK_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.06274509803921569,
+          0.7254901960784313,
+          0.5058823529411764,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "WORKSTATION_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.9372549019607843,
+          0.26666666666666666,
+          0.26666666666666666,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "MEDICAL_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.06274509803921569,
+          0.7254901960784313,
+          0.5058823529411764,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "MAINTENANCE_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5450980392156862,
+          0.3607843137254902,
+          0.9647058823529412,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "GLOVEBOX_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.9764705882352941,
+          0.45098039215686275,
+          0.08627450980392157,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "FOOD_PREP_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0784313725490196,
+          0.7215686274509804,
+          0.6509803921568628,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "COMMON_AREA_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0784313725490196,
+          0.7215686274509804,
+          0.6509803921568628,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "RECREATION_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.23137254901960785,
+          0.5098039215686274,
+          0.9647058823529412,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "EXERCISE_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "STOWAGE_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "TRASH_MGMT_mat"
+    },
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5803921568627451,
+          0.6392156862745098,
+          0.7215686274509804,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "CUSTOM_CAD_mat"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 840,
+      "uri": "all_modules.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 288,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 576,
+      "byteLength": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "ChatGPT GLTF Generator"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "name": "STOWAGE",
+      "mesh": 0,
+      "scale": [
+        1.2,
+        2.2,
+        1.2
+      ],
+      "extras": {
+        "label": "Storage Rack / Cargo Bay",
+        "category": "UTILITY",
+        "dims_m": [
+          1.2,
+          2.2,
+          1.2
+        ],
+        "volume_efficiency": 0.95,
+        "noise_class": "Quiet",
+        "adjacency": {
+          "avoid": [],
+          "prefer": [
+            "WORKSTATION",
+            "MAINTENANCE"
+          ]
+        },
+        "nasa_compliance_note": "Procedural fallback geometry; replace with CAD-accurate GLB when available."
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "STOWAGE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4196078431372549,
+          0.4470588235294118,
+          0.5019607843137255,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "STOWAGE_mat"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 840,
+      "uri": "STOWAGE.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 288,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 576,
+      "byteLength": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "ChatGPT GLTF Generator"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "name": "CUSTOM_CAD",
+      "mesh": 0,
+      "scale": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "extras": {
+        "label": "Custom CAD-designed Module",
+        "category": "WORK",
+        "dims_m": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "volume_efficiency": 0.85,
+        "noise_class": "Moderate",
+        "adjacency": {
+          "avoid": [],
+          "prefer": []
+        },
+        "nasa_compliance_note": "Procedural fallback geometry; replace with CAD-accurate GLB when available."
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CUSTOM_CAD_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5803921568627451,
+          0.6392156862745098,
+          0.7215686274509804,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "CUSTOM_CAD_mat"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 840,
+      "uri": "CUSTOM_CAD.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 288,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 576,
+      "byteLength": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "ChatGPT GLTF Generator"
+  },
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0,
+  "nodes": [
+    {
+      "name": "MAINTENANCE",
+      "mesh": 0,
+      "scale": [
+        2.6,
+        2.3,
+        2.0
+      ],
+      "extras": {
+        "label": "Maintenance Bay / Workshop",
+        "category": "WORK",
+        "dims_m": [
+          2.6,
+          2.3,
+          2.0
+        ],
+        "volume_efficiency": 0.8,
+        "noise_class": "Loud",
+        "adjacency": {
+          "avoid": [
+            "CREW_SLEEP",
+            "MEDICAL"
+          ],
+          "prefer": [
+            "AIRLOCK",
+            "WORKSTATION"
+          ]
+        },
+        "nasa_compliance_note": "Procedural fallback geometry; replace with CAD-accurate GLB when available."
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "MAINTENANCE_mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.06274509803921569,
+          0.7254901960784313,
+          0.5058823529411764,
+          1.0
+        ],
+        "metallicFactor": 0.55,
+        "roughnessFactor": 0.45
+      },
+      "doubleSided": false,
+      "name": "MAINTENANCE_mat"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 840,
+      "uri": "MAINTENANCE.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 288,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 576,
+      "byteLength": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ]
+}

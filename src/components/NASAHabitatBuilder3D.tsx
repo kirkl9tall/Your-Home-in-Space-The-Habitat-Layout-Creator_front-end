@@ -21,6 +21,7 @@ import { ChatInterface } from '@/components/ai/ChatInterface';
 
 // Available GLB Models for drag and drop
 const AVAILABLE_GLB_MODELS = [
+  // Original Demo Models
   {
     id: 'habitat_dem',
     name: 'Habitat Demo',
@@ -44,6 +45,114 @@ const AVAILABLE_GLB_MODELS = [
     preview: '🛰️',
     category: 'Station',
     description: 'Space station module'
+  },
+  // KayKit Space Base Models - Base Modules
+  {
+    id: 'basemodule_A',
+    name: 'Base Module A',
+    path: '/models/basemodule_A.gltf',
+    preview: '⬜',
+    category: 'Base Module',
+    description: 'Standard base module type A'
+  },
+  {
+    id: 'basemodule_B',
+    name: 'Base Module B',
+    path: '/models/basemodule_B.gltf',
+    preview: '🔲',
+    category: 'Base Module',
+    description: 'Standard base module type B'
+  },
+  {
+    id: 'basemodule_C',
+    name: 'Base Module C',
+    path: '/models/basemodule_C.gltf',
+    preview: '⬛',
+    category: 'Base Module',
+    description: 'Standard base module type C'
+  },
+  {
+    id: 'basemodule_D',
+    name: 'Base Module D',
+    path: '/models/basemodule_D.gltf',
+    preview: '🔳',
+    category: 'Base Module',
+    description: 'Standard base module type D'
+  },
+  {
+    id: 'basemodule_E',
+    name: 'Base Module E',
+    path: '/models/basemodule_E.gltf',
+    preview: '▫️',
+    category: 'Base Module',
+    description: 'Standard base module type E'
+  },
+  {
+    id: 'basemodule_garage',
+    name: 'Garage Module',
+    path: '/models/basemodule_garage.gltf',
+    preview: '🏢',
+    category: 'Base Module',
+    description: 'Garage storage module'
+  },
+  // KayKit Space Base Models - Cargo & Storage
+  {
+    id: 'cargo_A',
+    name: 'Cargo Container A',
+    path: '/models/cargo_A.gltf',
+    preview: '�',
+    category: 'Cargo',
+    description: 'Standard cargo container'
+  },
+  // KayKit Space Base Models - Landing Vehicles
+  {
+    id: 'lander_A',
+    name: 'Lander A',
+    path: '/models/lander_A.gltf',
+    preview: '�',
+    category: 'Vehicle',
+    description: 'Landing vehicle type A'
+  },
+  {
+    id: 'lander_B',
+    name: 'Lander B',
+    path: '/models/lander_B.gltf',
+    preview: '�',
+    category: 'Vehicle',
+    description: 'Landing vehicle type B'
+  },
+  {
+    id: 'lander_base',
+    name: 'Lander Base',
+    path: '/models/lander_base.gltf',
+    preview: '🏭',
+    category: 'Vehicle',
+    description: 'Lander base station'
+  },
+  {
+    id: 'spacetruck',
+    name: 'Space Truck',
+    path: '/models/spacetruck.gltf',
+    preview: '�',
+    category: 'Vehicle',
+    description: 'Heavy transport vehicle'
+  },
+  // KayKit Space Base Models - Energy Systems
+  {
+    id: 'roofmodule_solarpanels',
+    name: 'Solar Roof Module',
+    path: '/models/roofmodule_solarpanels.gltf',
+    preview: '⚡',
+    category: 'Energy',
+    description: 'Roof module with solar panels'
+  },
+  {
+    id: 'solarpanel',
+    name: 'Solar Panel',
+    path: '/models/solarpanel.gltf',
+    preview: '�',
+    category: 'Energy',
+    description: 'Individual solar panel unit'
   }
 ] as const;
 
@@ -2676,11 +2785,11 @@ function ThreeScene({
       dangerZonesRef.current.add(dangerZone);
     });
     
-    // Add corridor visualizations between connected modules
-    complianceAnalysis.corridorAnalysis.corridors.forEach(corridor => {
-      const corridorVisualization = createCorridorVisualization(corridor);
-      corridorsRef.current.add(corridorVisualization);
-    });
+    // Add corridor visualizations between connected modules - HIDDEN
+    // complianceAnalysis.corridorAnalysis.corridors.forEach(corridor => {
+    //   const corridorVisualization = createCorridorVisualization(corridor);
+    //   corridorsRef.current.add(corridorVisualization);
+    // });
     
     // Add warning indicators for unconnected modules
     complianceAnalysis.corridorAnalysis.unconnectedModules.forEach(moduleId => {
@@ -2864,7 +2973,8 @@ export default function NASAHabitatBuilder3D() {
   const [clipboard, setClipboard] = useState<HabitatObject | null>(null);
   
   // UI control states
-  const [showCameraHelp, setShowCameraHelp] = useState(true);
+  const [showCameraHelp, setShowCameraHelp] = useState(false);
+  const [showChatPopup, setShowChatPopup] = useState(false);
   const [keyboardAction, setKeyboardAction] = useState<string | null>(null);
   
 
@@ -3329,13 +3439,25 @@ export default function NASAHabitatBuilder3D() {
         snap(intersectionPoint.z)
       ];
       
+      // Set larger scale for KayKit models (they tend to be small)
+      const isKayKitModel = glbModel.path.includes('basemodule') || 
+                           glbModel.path.includes('lander') || 
+                           glbModel.path.includes('cargo') || 
+                           glbModel.path.includes('spacetruck') || 
+                           glbModel.path.includes('solarpanel');
+      
+      const defaultScale: [number, number, number] = isKayKitModel ? [3, 3, 3] : [1, 1, 1];
+      const defaultSize = isKayKitModel ? 
+        { w_m: 6, l_m: 6, h_m: 6 } : // Larger size for KayKit models
+        { w_m: 2, l_m: 2, h_m: 2 };  // Default size for other models
+      
       const newObject: HabitatObject = { 
         id, 
         type: 'CUSTOM_CAD',
         position, 
         rotation: [0, 0, 0], 
-        scale: [1, 1, 1],
-        size: { w_m: 2, l_m: 2, h_m: 2 }, // Default size, will be adjusted when model loads
+        scale: defaultScale,
+        size: defaultSize,
         glbPath: glbModel.path, // Store the GLB path for rendering
         name: glbModel.name
       };
@@ -3985,12 +4107,6 @@ export default function NASAHabitatBuilder3D() {
                         </div>
                         <div className="text-center min-w-0 w-full">
                           <div className="font-medium text-foreground text-xs truncate">{preset?.label || type}</div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {preset?.defaultSize.w_m || config.size.width}×{preset?.defaultSize.h_m || config.size.height}×{preset?.defaultSize.l_m || config.size.depth}m
-                          </div>
-                          <div className="text-[9px] text-gray-400">
-                            Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
-                          </div>
                         </div>
                       </div>
                     );
@@ -4462,8 +4578,6 @@ export default function NASAHabitatBuilder3D() {
                             GLB 3D Model
                           </div>
                           <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
-                          <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
-                          <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
                           <div className="text-cyan-300">
                             Custom 3D Model File
                           </div>
@@ -4474,18 +4588,10 @@ export default function NASAHabitatBuilder3D() {
                       const categoryColor = config?.nasaCategory === 'CLEAN' ? 'text-green-300' :
                                           config?.nasaCategory === 'DIRTY' ? 'text-orange-300' : 'text-blue-300';
                       return (
-                        <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           <div className={`${categoryColor} font-medium`}>
                             NASA {config?.nasaCategory} Area
                           </div>
-                          <div>Position: ({selectedObject.position[0].toFixed(1)}m, {selectedObject.position[1].toFixed(1)}m, {selectedObject.position[2].toFixed(1)}m)</div>
-                          <div>Volume: {(selectedObject.size.w_m * selectedObject.size.l_m * selectedObject.size.h_m).toFixed(1)}m³</div>
-                          <div>Area: {(selectedObject.size.w_m * selectedObject.size.l_m).toFixed(1)}m²</div>
-                          {config?.minDimensions && (
-                            <div className="text-yellow-300">
-                              NASA Min: {config.minDimensions.width}×{config.minDimensions.height}×{config.minDimensions.depth}m
-                            </div>
-                          )}
                         </div>
                       );
                     }
@@ -4733,9 +4839,63 @@ export default function NASAHabitatBuilder3D() {
             </div>
           </div>
 
+          {/* Floating AI Chat Button & Popup */}
+          <div className="absolute bottom-20 right-6 flex flex-col items-end gap-3">
+            {/* Chat Popup */}
+            {showChatPopup && (
+              <div className="w-[420px] h-[550px] glass-morphism rounded-xl shadow-2xl border-2 border-blue-500/50 glow-blue backdrop-blur-lg bg-background/95">
+                <div className="h-full flex flex-col">
+                  <ChatInterface
+                    designContext={generateNASALayout()}
+                    onSuggestionApply={(suggestion) => {
+                      console.log('AI Suggestion:', suggestion);
+                      // Handle AI suggestions here
+                    }}
+                    className="h-full flex-1"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Chat Toggle Button */}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setActiveTab('chat')}
+                className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-2xl border-2 border-blue-400/50 glow-blue transition-all duration-300 hover:scale-110 group"
+                title="Open Full Chat Interface"
+              >
+                <div className="relative">
+                  <MessageCircle className="w-6 h-6" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+                </div>
+              </Button>
+              
+              {/* Floating Chat Popup Button */}
+              <Button
+                onClick={() => setShowChatPopup(!showChatPopup)}
+                className={`w-12 h-12 rounded-full ${showChatPopup 
+                  ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 border-red-400/50 glow-red' 
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border-purple-400/50 glow-purple'
+                } text-white shadow-xl border-2 transition-all duration-300 hover:scale-105`}
+                title={showChatPopup ? "Close Floating Chat" : "Open Floating Chat"}
+              >
+                <div className="flex flex-col items-center">
+                  {showChatPopup ? (
+                    <span className="text-sm font-bold">×</span>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-4 h-4" />
+                      <div className="text-[8px] leading-none">Pop</div>
+                    </>
+                  )}
+                </div>
+              </Button>
+            </div>
+          </div>
+
           {/* Camera Controls Help */}
           {showCameraHelp && (
-            <div className="absolute bottom-6 right-6 glass-morphism rounded-xl p-3 shadow-2xl border border-purple-500/30 glow-purple max-w-[220px]">
+            <div className="absolute bottom-24 right-6 glass-morphism rounded-xl p-3 shadow-2xl border border-purple-500/30 glow-purple max-w-[220px]">
               <div className="text-xs space-y-2">
                 <div className="font-medium text-purple-300 flex items-center justify-between text-shadow">
                   <div className="flex items-center gap-2">
@@ -4832,7 +4992,7 @@ export default function NASAHabitatBuilder3D() {
                 nhv={habitat.net_habitable_volume_m3}
                 pressurizedVolume={habitat.pressurized_volume_m3}
                 utilization={Math.min(100, (objects.reduce((sum, obj) => sum + (obj.size.w_m * obj.size.l_m * obj.size.h_m), 0) / habitat.net_habitable_volume_m3) * 100)}
-                corridorStatus={objects.length > 0 ? 'success' : 'danger'}
+                // corridorStatus={objects.length > 0 ? 'success' : 'danger'}
               />
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

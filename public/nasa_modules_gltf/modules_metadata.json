@@ -1,0 +1,342 @@
+{
+  "CREW_SLEEP": {
+    "label": "Crew Quarters / Sleep Pods",
+    "category": "CREW",
+    "dims": [
+      2.2,
+      2.1,
+      1.2
+    ],
+    "volume_eff": 0.9,
+    "noise": "Quiet",
+    "color": "#3b82f6",
+    "adjacency": {
+      "avoid": [
+        "MAINTENANCE",
+        "AIRLOCK",
+        "TRASH_MGMT"
+      ],
+      "prefer": [
+        "HYGIENE",
+        "COMMON_AREA"
+      ]
+    }
+  },
+  "HYGIENE": {
+    "label": "Hygiene Station / Bathroom",
+    "category": "CREW",
+    "dims": [
+      1.6,
+      2.2,
+      1.3
+    ],
+    "volume_eff": 0.85,
+    "noise": "Moderate",
+    "color": "#3b82f6",
+    "adjacency": {
+      "avoid": [
+        "FOOD_PREP",
+        "GLOVEBOX"
+      ],
+      "prefer": [
+        "CREW_SLEEP"
+      ]
+    }
+  },
+  "WASTE": {
+    "label": "Waste Management System",
+    "category": "UTILITY",
+    "dims": [
+      1.2,
+      2.2,
+      1.0
+    ],
+    "volume_eff": 0.8,
+    "noise": "Loud",
+    "color": "#6b7280",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "MEDICAL",
+        "FOOD_PREP",
+        "COMMON_AREA"
+      ],
+      "prefer": [
+        "TRASH_MGMT"
+      ]
+    }
+  },
+  "ECLSS": {
+    "label": "ECLSS Life Support Rack",
+    "category": "UTILITY",
+    "dims": [
+      1.05,
+      2.0,
+      0.85
+    ],
+    "volume_eff": 0.95,
+    "noise": "Moderate",
+    "color": "#6b7280",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "MEDICAL"
+      ],
+      "prefer": [
+        "WORKSTATION"
+      ]
+    }
+  },
+  "AIRLOCK": {
+    "label": "Airlock Chamber",
+    "category": "UTILITY",
+    "dims": [
+      2.5,
+      2.5,
+      2.5
+    ],
+    "volume_eff": 0.7,
+    "noise": "Loud",
+    "color": "#6b7280",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "FOOD_PREP",
+        "COMMON_AREA"
+      ],
+      "prefer": [
+        "MAINTENANCE"
+      ]
+    }
+  },
+  "WORKSTATION": {
+    "label": "Multi-purpose Workstation",
+    "category": "WORK",
+    "dims": [
+      1.6,
+      2.1,
+      1.0
+    ],
+    "volume_eff": 0.85,
+    "noise": "Moderate",
+    "color": "#10b981",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP"
+      ],
+      "prefer": [
+        "MAINTENANCE",
+        "GLOVEBOX"
+      ]
+    }
+  },
+  "MEDICAL": {
+    "label": "Medical Bay / Health Facility",
+    "category": "MEDICAL",
+    "dims": [
+      2.8,
+      2.2,
+      2.0
+    ],
+    "volume_eff": 0.9,
+    "noise": "Quiet",
+    "color": "#ef4444",
+    "adjacency": {
+      "avoid": [
+        "WASTE",
+        "TRASH_MGMT",
+        "AIRLOCK"
+      ],
+      "prefer": [
+        "COMMON_AREA"
+      ]
+    }
+  },
+  "MAINTENANCE": {
+    "label": "Maintenance Bay / Workshop",
+    "category": "WORK",
+    "dims": [
+      2.6,
+      2.3,
+      2.0
+    ],
+    "volume_eff": 0.8,
+    "noise": "Loud",
+    "color": "#10b981",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "MEDICAL"
+      ],
+      "prefer": [
+        "AIRLOCK",
+        "WORKSTATION"
+      ]
+    }
+  },
+  "GLOVEBOX": {
+    "label": "Science Glovebox / Laboratory",
+    "category": "SCIENCE",
+    "dims": [
+      1.8,
+      2.0,
+      1.0
+    ],
+    "volume_eff": 0.9,
+    "noise": "Moderate",
+    "color": "#8b5cf6",
+    "adjacency": {
+      "avoid": [
+        "HYGIENE",
+        "FOOD_PREP"
+      ],
+      "prefer": [
+        "WORKSTATION"
+      ]
+    }
+  },
+  "FOOD_PREP": {
+    "label": "Galley / Kitchen Module",
+    "category": "FOOD",
+    "dims": [
+      2.0,
+      2.1,
+      1.4
+    ],
+    "volume_eff": 0.9,
+    "noise": "Moderate",
+    "color": "#f97316",
+    "adjacency": {
+      "avoid": [
+        "HYGIENE",
+        "WASTE",
+        "TRASH_MGMT"
+      ],
+      "prefer": [
+        "COMMON_AREA"
+      ]
+    }
+  },
+  "COMMON_AREA": {
+    "label": "Common / Social Area",
+    "category": "SOCIAL",
+    "dims": [
+      3.2,
+      2.1,
+      2.2
+    ],
+    "volume_eff": 0.95,
+    "noise": "Moderate",
+    "color": "#14b8a6",
+    "adjacency": {
+      "avoid": [
+        "WASTE",
+        "MAINTENANCE",
+        "AIRLOCK"
+      ],
+      "prefer": [
+        "FOOD_PREP",
+        "CREW_SLEEP"
+      ]
+    }
+  },
+  "RECREATION": {
+    "label": "Recreation / Entertainment",
+    "category": "SOCIAL",
+    "dims": [
+      2.4,
+      2.1,
+      1.8
+    ],
+    "volume_eff": 0.9,
+    "noise": "Quiet",
+    "color": "#14b8a6",
+    "adjacency": {
+      "avoid": [
+        "WASTE",
+        "MAINTENANCE"
+      ],
+      "prefer": [
+        "COMMON_AREA"
+      ]
+    }
+  },
+  "EXERCISE": {
+    "label": "Exercise / Fitness (ARED-style)",
+    "category": "CREW",
+    "dims": [
+      3.0,
+      2.4,
+      2.4
+    ],
+    "volume_eff": 0.8,
+    "noise": "Loud",
+    "color": "#3b82f6",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "MEDICAL"
+      ],
+      "prefer": [
+        "COMMON_AREA"
+      ]
+    }
+  },
+  "STOWAGE": {
+    "label": "Storage Rack / Cargo Bay",
+    "category": "UTILITY",
+    "dims": [
+      1.2,
+      2.2,
+      1.2
+    ],
+    "volume_eff": 0.95,
+    "noise": "Quiet",
+    "color": "#6b7280",
+    "adjacency": {
+      "avoid": [],
+      "prefer": [
+        "WORKSTATION",
+        "MAINTENANCE"
+      ]
+    }
+  },
+  "TRASH_MGMT": {
+    "label": "Trash Compactor / Management",
+    "category": "UTILITY",
+    "dims": [
+      1.4,
+      2.1,
+      1.2
+    ],
+    "volume_eff": 0.75,
+    "noise": "Loud",
+    "color": "#6b7280",
+    "adjacency": {
+      "avoid": [
+        "CREW_SLEEP",
+        "FOOD_PREP",
+        "COMMON_AREA"
+      ],
+      "prefer": [
+        "WASTE"
+      ]
+    }
+  },
+  "CUSTOM_CAD": {
+    "label": "Custom CAD-designed Module",
+    "category": "WORK",
+    "dims": [
+      2.0,
+      2.0,
+      2.0
+    ],
+    "volume_eff": 0.85,
+    "noise": "Moderate",
+    "color": "#94a3b8",
+    "adjacency": {
+      "avoid": [],
+      "prefer": []
+    }
+  }
+}
