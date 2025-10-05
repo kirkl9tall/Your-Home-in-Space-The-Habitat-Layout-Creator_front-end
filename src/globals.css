@@ -165,3 +165,24 @@ button:hover {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* NASA-style logo typography */
+.nasa-logo {
+  font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 1.1rem;
+}
+
+/* NASA-style badge logo */
+.nasa-logo-badge {
+  font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 1rem;
+  text-transform: uppercase;
+}

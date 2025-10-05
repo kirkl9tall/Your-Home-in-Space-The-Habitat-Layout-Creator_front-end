@@ -20,14 +20,11 @@ export function Layout() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/design" className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center">
-                  <Rocket className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
-                    NASA Habitat Designer
-                  </h1>
-                </div>
+                <img 
+                  src="/logo-nhd.png" 
+                  alt="NHD Logo" 
+                  className="w-32 h-20 object-contain"
+                />
               </Link>
             </div>
             
