@@ -2919,7 +2919,7 @@ export default function NASAHabitatBuilder3D() {
   );
   const [loading, setLoading] = useState({ validation: false });
   const [showHelp, setShowHelp] = useState(false);
-  const [showMainMenu, setShowMainMenu] = useState(false);
+  const [showMainMenu, setShowMainMenu] = useState(true);
   const [nextId, setNextId] = useState(1);
   const [isInitialized, setIsInitialized] = useState(false);
   
